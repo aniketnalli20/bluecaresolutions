@@ -89,7 +89,6 @@ const initialInvoiceForm = {
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [needsSoundUnlock, setNeedsSoundUnlock] = useState(false)
   const [workspace, setWorkspace] = useState(null)
   const [statusMessage, setStatusMessage] = useState('Preparing your care workspace...')
   const [patientSearch, setPatientSearch] = useState('')
@@ -119,9 +118,8 @@ function App() {
       refreshSoundRef.current.currentTime = 0
       await refreshSoundRef.current.play()
       hasPlayedRefreshSoundRef.current = true
-      setNeedsSoundUnlock(false)
     } catch {
-      setNeedsSoundUnlock(true)
+      // Some browsers defer audible playback until the page receives an allowed event.
     }
   }, [])
 
@@ -140,18 +138,31 @@ function App() {
     const initialPlaybackTimer = window.setTimeout(() => {
       void attemptRefreshSoundPlayback()
     }, 0)
+    const handleVisiblePlayback = () => {
+      if (document.visibilityState === 'visible') {
+        void attemptRefreshSoundPlayback()
+      }
+    }
 
     window.addEventListener('pointerdown', attemptRefreshSoundPlayback, { passive: true })
+    window.addEventListener('touchstart', attemptRefreshSoundPlayback, { passive: true })
     window.addEventListener('touchend', attemptRefreshSoundPlayback, { passive: true })
     window.addEventListener('click', attemptRefreshSoundPlayback, { passive: true })
     window.addEventListener('keydown', attemptRefreshSoundPlayback)
+    window.addEventListener('focus', attemptRefreshSoundPlayback)
+    window.addEventListener('pageshow', attemptRefreshSoundPlayback)
+    document.addEventListener('visibilitychange', handleVisiblePlayback)
 
     return () => {
       window.clearTimeout(initialPlaybackTimer)
       window.removeEventListener('pointerdown', attemptRefreshSoundPlayback)
+      window.removeEventListener('touchstart', attemptRefreshSoundPlayback)
       window.removeEventListener('touchend', attemptRefreshSoundPlayback)
       window.removeEventListener('click', attemptRefreshSoundPlayback)
       window.removeEventListener('keydown', attemptRefreshSoundPlayback)
+      window.removeEventListener('focus', attemptRefreshSoundPlayback)
+      window.removeEventListener('pageshow', attemptRefreshSoundPlayback)
+      document.removeEventListener('visibilitychange', handleVisiblePlayback)
       refreshSoundRef.current?.pause()
       if (refreshSoundRef.current) {
         refreshSoundRef.current.currentTime = 0
@@ -469,17 +480,6 @@ function App() {
 
   return (
     <div className="app-shell">
-      {needsSoundUnlock ? (
-        <button
-          type="button"
-          className="sound-unlock-button"
-          onClick={attemptRefreshSoundPlayback}
-          aria-label="Enable refresh sound"
-        >
-          Enable refresh sound
-        </button>
-      ) : null}
-
       <div className="disclaimer-marquee" role="note" aria-label="Demonstration disclaimer">
         <div className="disclaimer-track">
           <span>
