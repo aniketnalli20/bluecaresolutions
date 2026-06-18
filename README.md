@@ -50,6 +50,13 @@ npm run dev
 npm run build
 ```
 
+## Vercel Deployment
+
+- The project now includes a root [vercel.json](file:///c:/xampp/htdocs/bluecaresolutions/vercel.json) so Vercel builds the nested `frontend` app correctly.
+- The production output is `frontend/dist`.
+- If the Vercel project was created before this setup, trigger a new deployment so the latest config is picked up.
+- The expected production URL is [https://bluecaresolutions.vercel.app/](https://bluecaresolutions.vercel.app/).
+
 ## How Saving Works
 
 - Starter records load automatically the first time the app opens
@@ -58,6 +65,7 @@ npm run build
 
 ## Design Direction
 
-- Uses the palette `#03045e`, `#0077b6`, `#00b4d8`, `#90e0ef`, and `#caf0f8`
+- Uses the Coolors palette [03045e-0077b6-00b4d8-90e0ef-caf0f8](https://coolors.co/palette/03045e-0077b6-00b4d8-90e0ef-caf0f8)
+- Uses `Manrope` as the primary display and interface font
 - Keeps the layout bright, readable, and calm for long sessions
 - Uses simple built-in icons instead of emoji
