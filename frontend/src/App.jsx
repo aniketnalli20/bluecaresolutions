@@ -463,11 +463,16 @@ function App() {
         <header className="mobile-topbar">
           <button
             type="button"
-            className="menu-toggle"
+            className={isMenuOpen ? 'menu-toggle active' : 'menu-toggle'}
             onClick={() => setIsMenuOpen((current) => !current)}
             aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
           >
-            <Icon name={isMenuOpen ? 'close' : 'menu'} />
+            <span className="menu-toggle-bars" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
           </button>
           <div className="mobile-brand">
             <span className="mobile-brand-mark">
