@@ -408,8 +408,8 @@ function App() {
             <Icon name="pulse" />
           </div>
           <div>
-            <p className="eyebrow">BlueCare</p>
-            <h1>EMR Suite</h1>
+            <p className="eyebrow">EMR Suite </p>
+            <h1>BlueCare solutions</h1>
             <p className="sidebar-copy">A calmer, clearer workspace for daily patient care.</p>
           </div>
         </div>
