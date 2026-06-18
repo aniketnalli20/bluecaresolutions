@@ -446,8 +446,8 @@ function App() {
           <div className="brand-mark">
             <Icon name="pulse" />
           </div>
-          <div>
-            <p className="eyebrow">EMR Suite </p>
+          <div className="brand-copy">
+            <p className="eyebrow">EMR Suite</p>
             <h1>BlueCare solutions</h1>
             <p className="sidebar-copy">A calmer, clearer workspace for daily patient care.</p>
           </div>

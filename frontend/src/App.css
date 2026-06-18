@@ -92,7 +92,13 @@
 .sidebar-top {
   display: flex;
   gap: 14px;
-  align-items: flex-start;
+  align-items: center;
+}
+
+.brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .brand-mark,
@@ -143,10 +149,11 @@
 .sidebar h1 {
   color: #ffffff;
   font-size: 1.75rem;
+  line-height: 1.1;
 }
 
 .eyebrow {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -170,6 +177,11 @@
 .sidebar-copy,
 .sidebar-status p {
   color: rgba(246, 252, 255, 0.82);
+}
+
+.sidebar-copy {
+  max-width: 22ch;
+  line-height: 1.55;
 }
 
 .sidebar-nav {
