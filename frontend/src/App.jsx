@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createRecord,
   loadWorkspaceData,
@@ -89,6 +89,7 @@ const initialInvoiceForm = {
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [needsSoundUnlock, setNeedsSoundUnlock] = useState(false)
   const [workspace, setWorkspace] = useState(null)
   const [statusMessage, setStatusMessage] = useState('Preparing your care workspace...')
   const [patientSearch, setPatientSearch] = useState('')
@@ -100,6 +101,29 @@ function App() {
   const [consultationForm, setConsultationForm] = useState(initialConsultationForm)
   const [prescriptionForm, setPrescriptionForm] = useState(initialPrescriptionForm)
   const [invoiceForm, setInvoiceForm] = useState(initialInvoiceForm)
+  const refreshSoundRef = useRef(null)
+  const hasPlayedRefreshSoundRef = useRef(false)
+
+  const attemptRefreshSoundPlayback = useCallback(async () => {
+    if (hasPlayedRefreshSoundRef.current) {
+      return
+    }
+
+    if (!refreshSoundRef.current) {
+      refreshSoundRef.current = new Audio(refreshSoundPath)
+      refreshSoundRef.current.volume = 0.38
+      refreshSoundRef.current.preload = 'auto'
+    }
+
+    try {
+      refreshSoundRef.current.currentTime = 0
+      await refreshSoundRef.current.play()
+      hasPlayedRefreshSoundRef.current = true
+      setNeedsSoundUnlock(false)
+    } catch {
+      setNeedsSoundUnlock(true)
+    }
+  }, [])
 
   useEffect(() => {
     async function loadWorkspace() {
@@ -113,40 +137,27 @@ function App() {
   }, [])
 
   useEffect(() => {
-    let audio
-    let hasPlayed = false
+    const initialPlaybackTimer = window.setTimeout(() => {
+      void attemptRefreshSoundPlayback()
+    }, 0)
 
-    const playRefreshSound = () => {
-      if (hasPlayed) {
-        return
-      }
-
-      audio = new Audio(refreshSoundPath)
-      audio.volume = 0.38
-
-      audio
-        .play()
-        .then(() => {
-          hasPlayed = true
-          window.removeEventListener('pointerdown', playRefreshSound)
-          window.removeEventListener('keydown', playRefreshSound)
-        })
-        .catch(() => {})
-    }
-
-    playRefreshSound()
-    window.addEventListener('pointerdown', playRefreshSound)
-    window.addEventListener('keydown', playRefreshSound)
+    window.addEventListener('pointerdown', attemptRefreshSoundPlayback, { passive: true })
+    window.addEventListener('touchend', attemptRefreshSoundPlayback, { passive: true })
+    window.addEventListener('click', attemptRefreshSoundPlayback, { passive: true })
+    window.addEventListener('keydown', attemptRefreshSoundPlayback)
 
     return () => {
-      window.removeEventListener('pointerdown', playRefreshSound)
-      window.removeEventListener('keydown', playRefreshSound)
-      audio?.pause()
-      if (audio) {
-        audio.currentTime = 0
+      window.clearTimeout(initialPlaybackTimer)
+      window.removeEventListener('pointerdown', attemptRefreshSoundPlayback)
+      window.removeEventListener('touchend', attemptRefreshSoundPlayback)
+      window.removeEventListener('click', attemptRefreshSoundPlayback)
+      window.removeEventListener('keydown', attemptRefreshSoundPlayback)
+      refreshSoundRef.current?.pause()
+      if (refreshSoundRef.current) {
+        refreshSoundRef.current.currentTime = 0
       }
     }
-  }, [])
+  }, [attemptRefreshSoundPlayback])
 
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? 'hidden' : ''
@@ -458,6 +469,17 @@ function App() {
 
   return (
     <div className="app-shell">
+      {needsSoundUnlock ? (
+        <button
+          type="button"
+          className="sound-unlock-button"
+          onClick={attemptRefreshSoundPlayback}
+          aria-label="Enable refresh sound"
+        >
+          Enable refresh sound
+        </button>
+      ) : null}
+
       <div className="disclaimer-marquee" role="note" aria-label="Demonstration disclaimer">
         <div className="disclaimer-track">
           <span>
