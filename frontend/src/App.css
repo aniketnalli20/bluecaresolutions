@@ -382,6 +382,7 @@
 .focus-card strong {
   font-size: 1.5rem;
   color: #ffffff;
+  font-variant-numeric: tabular-nums;
 }
 
 .top-strip {
@@ -490,6 +491,7 @@
 .info-card strong {
   font-size: 1.65rem;
   color: var(--deep-twilight);
+  font-variant-numeric: tabular-nums;
 }
 
 .panel-icon,

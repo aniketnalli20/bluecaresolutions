@@ -195,17 +195,22 @@ function App() {
       [
         {
           label: 'Visit flow',
-          value: `${dashboard.todaysAppointments || 0} planned`,
+          value: dashboard.todaysAppointments || 0,
+          format: 'count',
+          suffix: 'planned',
           caption: 'Keep today moving smoothly',
         },
         {
           label: 'Care team',
-          value: `${dashboard.activeDoctors || 0} active`,
+          value: dashboard.activeDoctors || 0,
+          format: 'count',
+          suffix: 'active',
           caption: 'Doctors ready for consultations',
         },
         {
           label: 'Collection',
-          value: formatCurrency(dashboard.monthlyRevenue || 0),
+          value: dashboard.monthlyRevenue || 0,
+          format: 'currency',
           caption: 'Strong month-to-date progress',
         },
       ],
@@ -526,7 +531,14 @@ function App() {
             {todayFocus.map((item) => (
               <article key={item.label} className="focus-card">
                 <small>{item.label}</small>
-                <strong>{item.value}</strong>
+                <strong>
+                  <AnimatedMetric
+                    key={`${item.label}-${item.value}-${item.suffix || ''}`}
+                    value={item.value}
+                    format={item.format}
+                    suffix={item.suffix}
+                  />
+                </strong>
                 <span>{item.caption}</span>
               </article>
             ))}
@@ -534,17 +546,29 @@ function App() {
         </header>
 
         <section className="top-strip">
-          <StatCard icon="patients" label="Patients" value={dashboard.totalPatients || patients.length} />
+          <StatCard
+            icon="patients"
+            label="Patients"
+            value={dashboard.totalPatients || patients.length}
+            format="count"
+          />
           <StatCard
             icon="calendar"
             label="Today&apos;s Visits"
             value={dashboard.todaysAppointments || 0}
+            format="count"
           />
-          <StatCard icon="stethoscope" label="Active Doctors" value={dashboard.activeDoctors || 0} />
+          <StatCard
+            icon="stethoscope"
+            label="Active Doctors"
+            value={dashboard.activeDoctors || 0}
+            format="count"
+          />
           <StatCard
             icon="wallet"
             label="Monthly Revenue"
-            value={formatCurrency(dashboard.monthlyRevenue || 0)}
+            value={dashboard.monthlyRevenue || 0}
+            format="currency"
           />
         </section>
 
@@ -1424,7 +1448,7 @@ function App() {
   )
 }
 
-function StatCard({ icon, label, value }) {
+function StatCard({ icon, label, value, format = 'count' }) {
   return (
     <article className="stat-card">
       <div className="stat-card-top">
@@ -1433,8 +1457,51 @@ function StatCard({ icon, label, value }) {
         </span>
         <p>{label}</p>
       </div>
-      <strong>{value}</strong>
+      <strong>
+        <AnimatedMetric key={`${label}-${value}-${format}`} value={value} format={format} />
+      </strong>
     </article>
+  )
+}
+
+function AnimatedMetric({ value, format = 'count', suffix = '' }) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    const targetValue = Number(value || 0)
+    const duration = 900
+    let frameId = 0
+    let startTime = 0
+
+    function animateFrame(timestamp) {
+      if (!startTime) {
+        startTime = timestamp
+      }
+
+      const progress = Math.min((timestamp - startTime) / duration, 1)
+      const easedProgress = 1 - (1 - progress) * (1 - progress)
+      setDisplayValue(Math.round(targetValue * easedProgress))
+
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animateFrame)
+      }
+    }
+
+    frameId = window.requestAnimationFrame(animateFrame)
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [value])
+
+  const formattedValue =
+    format === 'currency'
+      ? formatCurrency(displayValue)
+      : displayValue.toLocaleString('en-IN')
+
+  return (
+    <>
+      {formattedValue}
+      {suffix ? ` ${suffix}` : ''}
+    </>
   )
 }
 
