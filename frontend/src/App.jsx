@@ -5,6 +5,7 @@ import {
   resetWorkspaceData,
   updateRecord,
 } from './services/emrStore'
+import roadblockImage from './assets/roadblock.png'
 import './App.css'
 
 const navItems = [
@@ -101,26 +102,18 @@ function App() {
   const [prescriptionForm, setPrescriptionForm] = useState(initialPrescriptionForm)
   const [invoiceForm, setInvoiceForm] = useState(initialInvoiceForm)
   const refreshSoundRef = useRef(null)
-  const hasPlayedRefreshSoundRef = useRef(false)
 
-  const attemptRefreshSoundPlayback = useCallback(async () => {
-    if (hasPlayedRefreshSoundRef.current) {
-      return
-    }
-
+  const playMajorActionSound = useCallback(() => {
     if (!refreshSoundRef.current) {
       refreshSoundRef.current = new Audio(refreshSoundPath)
       refreshSoundRef.current.volume = 0.38
       refreshSoundRef.current.preload = 'auto'
     }
 
-    try {
-      refreshSoundRef.current.currentTime = 0
-      await refreshSoundRef.current.play()
-      hasPlayedRefreshSoundRef.current = true
-    } catch {
+    refreshSoundRef.current.currentTime = 0
+    void refreshSoundRef.current.play().catch(() => {
       // Some browsers defer audible playback until the page receives an allowed event.
-    }
+    })
   }, [])
 
   useEffect(() => {
@@ -135,48 +128,22 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const initialPlaybackTimer = window.setTimeout(() => {
-      void attemptRefreshSoundPlayback()
-    }, 0)
-    const handleVisiblePlayback = () => {
-      if (document.visibilityState === 'visible') {
-        void attemptRefreshSoundPlayback()
-      }
-    }
-
-    window.addEventListener('pointerdown', attemptRefreshSoundPlayback, { passive: true })
-    window.addEventListener('touchstart', attemptRefreshSoundPlayback, { passive: true })
-    window.addEventListener('touchend', attemptRefreshSoundPlayback, { passive: true })
-    window.addEventListener('click', attemptRefreshSoundPlayback, { passive: true })
-    window.addEventListener('keydown', attemptRefreshSoundPlayback)
-    window.addEventListener('focus', attemptRefreshSoundPlayback)
-    window.addEventListener('pageshow', attemptRefreshSoundPlayback)
-    document.addEventListener('visibilitychange', handleVisiblePlayback)
-
-    return () => {
-      window.clearTimeout(initialPlaybackTimer)
-      window.removeEventListener('pointerdown', attemptRefreshSoundPlayback)
-      window.removeEventListener('touchstart', attemptRefreshSoundPlayback)
-      window.removeEventListener('touchend', attemptRefreshSoundPlayback)
-      window.removeEventListener('click', attemptRefreshSoundPlayback)
-      window.removeEventListener('keydown', attemptRefreshSoundPlayback)
-      window.removeEventListener('focus', attemptRefreshSoundPlayback)
-      window.removeEventListener('pageshow', attemptRefreshSoundPlayback)
-      document.removeEventListener('visibilitychange', handleVisiblePlayback)
-      refreshSoundRef.current?.pause()
-      if (refreshSoundRef.current) {
-        refreshSoundRef.current.currentTime = 0
-      }
-    }
-  }, [attemptRefreshSoundPlayback])
-
-  useEffect(() => {
     document.body.style.overflow = isMenuOpen ? 'hidden' : ''
 
     return () => {
       document.body.style.overflow = ''
     }
   }, [isMenuOpen])
+
+  useEffect(
+    () => () => {
+      refreshSoundRef.current?.pause()
+      if (refreshSoundRef.current) {
+        refreshSoundRef.current.currentTime = 0
+      }
+    },
+    [],
+  )
 
   const patients = workspace?.patients ?? emptyList
   const doctors = workspace?.doctors ?? emptyList
@@ -276,6 +243,57 @@ function App() {
     [dashboard],
   )
 
+  const currentViewMeta = useMemo(
+    () => ({
+      Patients: {
+        eyebrow: 'Patient Care',
+        title: 'Patient Management',
+        text: 'Search records, review profiles, and update details without returning to the dashboard.',
+      },
+      Appointments: {
+        eyebrow: 'Visit Planning',
+        title: 'Appointment Management',
+        text: 'Schedule, reschedule, and track every visit from a clearer daily workspace.',
+      },
+      Doctors: {
+        eyebrow: 'Care Team',
+        title: 'Doctor Management',
+        text: 'Review specialties, availability, and active consultation load in one place.',
+      },
+      Consultations: {
+        eyebrow: 'Clinical Notes',
+        title: 'Consultations And EMR',
+        text: 'Capture clinical notes, diagnoses, treatment plans, and supporting documents.',
+      },
+      Prescriptions: {
+        eyebrow: 'Medication Desk',
+        title: 'Prescriptions',
+        text: 'Prepare medicines, dosage instructions, and patient-ready prescription summaries.',
+      },
+      Billing: {
+        eyebrow: 'Billing Desk',
+        title: 'Billing',
+        text: 'Create invoices, track collections, and keep receipts and balances organized.',
+      },
+      Reports: {
+        eyebrow: 'Insights',
+        title: 'Reports',
+        text: 'Review patient, appointment, revenue, and doctor activity reports with export options.',
+      },
+      Notifications: {
+        eyebrow: 'Reminders',
+        title: 'Notifications',
+        text: 'Stay on top of follow-ups, upcoming visits, and billing reminders.',
+      },
+      Profile: {
+        eyebrow: 'Workspace',
+        title: 'User Profile',
+        text: 'Review the current progress of your upcoming profile and account tools.',
+      },
+    })[activeView] || null,
+    [activeView],
+  )
+
   async function saveRecord({
     mode = 'create',
     collection,
@@ -293,6 +311,7 @@ function App() {
 
       setWorkspace(result.data)
       setStatusMessage(successMessage)
+      playMajorActionSound()
       resetForm?.()
       afterSave?.(result.record)
     } catch {
@@ -467,11 +486,13 @@ function App() {
     setWorkspace(data)
     setSelectedPatientId(data.patients[0]?.id || null)
     setStatusMessage('Starter records have been refreshed.')
+    playMajorActionSound()
   }
 
   function changeView(view) {
     setActiveView(view)
     setIsMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (!workspace) {
@@ -566,70 +587,104 @@ function App() {
               <strong>{activeView}</strong>
             </div>
           </div>
+          <button
+            type="button"
+            className={activeView === 'Profile' ? 'profile-shortcut active' : 'profile-shortcut'}
+            onClick={() => changeView('Profile')}
+            aria-label="Open profile section"
+          >
+            <Icon name="user" />
+          </button>
         </header>
 
-        <header className="hero-banner">
-          <div className="hero-copy">
-            <p className="eyebrow">Care Overview</p>
-            <h2>Everything you need for the day is in one place.</h2>
-            <p>
-              Review visits, update records, prepare prescriptions, and keep billing on track
-              without leaving the workspace.
-            </p>
-            <div className="hero-actions">
-              <button type="button" className="primary-button" onClick={() => setActiveView('Appointments')}>
-                Open Today&apos;s Visits
-              </button>
-              <button type="button" className="ghost-button" onClick={() => changeView('Patients')}>
-                Review Patients
-              </button>
-            </div>
-          </div>
+        <div className="desktop-toolbar">
+          <button
+            type="button"
+            className={activeView === 'Profile' ? 'profile-cta active' : 'profile-cta'}
+            onClick={() => changeView('Profile')}
+          >
+            <span className="profile-cta-icon">
+              <Icon name="user" />
+            </span>
+            <span>
+              <small>Workspace</small>
+              <strong>Profile</strong>
+            </span>
+          </button>
+        </div>
 
-          <div className="hero-focus">
-            {todayFocus.map((item) => (
-              <article key={item.label} className="focus-card">
-                <small>{item.label}</small>
-                <strong>
-                  <AnimatedMetric
-                    key={`${item.label}-${item.value}-${item.suffix || ''}`}
-                    value={item.value}
-                    format={item.format}
-                    suffix={item.suffix}
-                  />
-                </strong>
-                <span>{item.caption}</span>
-              </article>
-            ))}
-          </div>
-        </header>
+        {activeView === 'Dashboard' ? (
+          <>
+            <header className="hero-banner">
+              <div className="hero-copy">
+                <p className="eyebrow">Care Overview</p>
+                <h2>Everything you need for the day is in one place.</h2>
+                <p>
+                  Review visits, update records, prepare prescriptions, and keep billing on track
+                  without leaving the workspace.
+                </p>
+                <div className="hero-actions">
+                  <button type="button" className="primary-button" onClick={() => changeView('Appointments')}>
+                    Open Today&apos;s Visits
+                  </button>
+                  <button type="button" className="ghost-button" onClick={() => changeView('Patients')}>
+                    Review Patients
+                  </button>
+                </div>
+              </div>
 
-        <section className="top-strip">
-          <StatCard
-            icon="patients"
-            label="Patients"
-            value={dashboard.totalPatients || patients.length}
-            format="count"
-          />
-          <StatCard
-            icon="calendar"
-            label="Today&apos;s Visits"
-            value={dashboard.todaysAppointments || 0}
-            format="count"
-          />
-          <StatCard
-            icon="stethoscope"
-            label="Active Doctors"
-            value={dashboard.activeDoctors || 0}
-            format="count"
-          />
-          <StatCard
-            icon="wallet"
-            label="Monthly Revenue"
-            value={dashboard.monthlyRevenue || 0}
-            format="currency"
-          />
-        </section>
+              <div className="hero-focus">
+                {todayFocus.map((item) => (
+                  <article key={item.label} className="focus-card">
+                    <small>{item.label}</small>
+                    <strong>
+                      <AnimatedMetric
+                        key={`${item.label}-${item.value}-${item.suffix || ''}`}
+                        value={item.value}
+                        format={item.format}
+                        suffix={item.suffix}
+                      />
+                    </strong>
+                    <span>{item.caption}</span>
+                  </article>
+                ))}
+              </div>
+            </header>
+
+            <section className="top-strip">
+              <StatCard
+                icon="patients"
+                label="Patients"
+                value={dashboard.totalPatients || patients.length}
+                format="count"
+              />
+              <StatCard
+                icon="calendar"
+                label="Today&apos;s Visits"
+                value={dashboard.todaysAppointments || 0}
+                format="count"
+              />
+              <StatCard
+                icon="stethoscope"
+                label="Active Doctors"
+                value={dashboard.activeDoctors || 0}
+                format="count"
+              />
+              <StatCard
+                icon="wallet"
+                label="Monthly Revenue"
+                value={dashboard.monthlyRevenue || 0}
+                format="currency"
+              />
+            </section>
+          </>
+        ) : currentViewMeta ? (
+          <section className="page-intro panel">
+            <p className="eyebrow">{currentViewMeta.eyebrow}</p>
+            <h2>{currentViewMeta.title}</h2>
+            <p>{currentViewMeta.text}</p>
+          </section>
+        ) : null}
 
         {activeView === 'Dashboard' && (
           <section className="content-grid">
@@ -1502,6 +1557,31 @@ function App() {
             </Panel>
           </section>
         )}
+
+        {activeView === 'Profile' && (
+          <section className="content-grid">
+            <Panel
+              title="User Profile"
+              subtitle="Your personal profile tools will appear here as this section continues to grow."
+            >
+              <div className="profile-development-card">
+                <div className="profile-development-copy">
+                  <span className="soft-pill">Under development stage</span>
+                  <h3>Profile tools are currently being prepared.</h3>
+                  <p>
+                    Account details, preferences, personal activity, and quick settings will be
+                    added here in a future update.
+                  </p>
+                </div>
+                <img
+                  src={roadblockImage}
+                  alt="Roadblock sign showing that the profile section is under development"
+                  className="profile-roadblock-image"
+                />
+              </div>
+            </Panel>
+          </section>
+        )}
       </main>
     </div>
   )
@@ -1692,6 +1772,7 @@ function Icon({ name }) {
     search: 'm19 19-3.5-3.5M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13Z',
     stethoscope:
       'M8 4v5a4 4 0 1 0 8 0V4M8 7H6m10 0h2M12 13v3a3 3 0 1 0 6 0v-1.5a1.5 1.5 0 1 0-1.5-1.5',
+    user: 'M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.2 0-6 1.6-6 3.6V19h12v-1.4c0-2-2.8-3.6-6-3.6Z',
     wallet:
       'M4 7.5A2.5 2.5 0 0 1 6.5 5h10A1.5 1.5 0 0 1 18 6.5V7h1a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a.5.5 0 0 1 .5-.5H18M16 12h3',
   }
