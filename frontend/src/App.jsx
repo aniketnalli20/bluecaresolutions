@@ -22,6 +22,7 @@ const navItems = [
 const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled']
 const emptyList = []
 const emptyObject = {}
+const refreshSoundPath = '/sounds/soft-success_HGK0kiS.mp3'
 
 const initialPatientForm = {
   full_name: '',
@@ -109,6 +110,42 @@ function App() {
     }
 
     loadWorkspace()
+  }, [])
+
+  useEffect(() => {
+    let audio
+    let hasPlayed = false
+
+    const playRefreshSound = () => {
+      if (hasPlayed) {
+        return
+      }
+
+      audio = new Audio(refreshSoundPath)
+      audio.volume = 0.38
+
+      audio
+        .play()
+        .then(() => {
+          hasPlayed = true
+          window.removeEventListener('pointerdown', playRefreshSound)
+          window.removeEventListener('keydown', playRefreshSound)
+        })
+        .catch(() => {})
+    }
+
+    playRefreshSound()
+    window.addEventListener('pointerdown', playRefreshSound)
+    window.addEventListener('keydown', playRefreshSound)
+
+    return () => {
+      window.removeEventListener('pointerdown', playRefreshSound)
+      window.removeEventListener('keydown', playRefreshSound)
+      audio?.pause()
+      if (audio) {
+        audio.currentTime = 0
+      }
+    }
   }, [])
 
   useEffect(() => {
