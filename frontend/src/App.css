@@ -23,6 +23,41 @@
     linear-gradient(135deg, rgba(202, 240, 248, 0.92), rgba(144, 224, 239, 0.35) 35%, #f7fdff 100%);
 }
 
+.disclaimer-marquee {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  white-space: nowrap;
+  background: #fff1f2;
+  border-bottom: 1px solid rgba(220, 38, 38, 0.16);
+  color: #b91c1c;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.disclaimer-track {
+  display: inline-flex;
+  min-width: 100%;
+  gap: 56px;
+  padding: 10px 0;
+  animation: disclaimer-scroll 26s linear infinite;
+}
+
+.disclaimer-track span {
+  display: inline-block;
+  padding-left: 24px;
+}
+
+@keyframes disclaimer-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .sidebar-overlay {
   position: fixed;
   inset: 0;

@@ -416,6 +416,25 @@ function App() {
 
   return (
     <div className="app-shell">
+      <div className="disclaimer-marquee" role="note" aria-label="Demonstration disclaimer">
+        <div className="disclaimer-track">
+          <span>
+            WARNING DISCLAIMER: This software is for demonstration, testing, and development
+            purposes only. It is NOT intended for live clinical, hospital-floor, patient-care, or
+            production use. All records, patient information, reports, schedules, and datasets
+            displayed within this application are artificial, fictional, and generated solely for
+            testing purposes.
+          </span>
+          <span aria-hidden="true">
+            WARNING DISCLAIMER: This software is for demonstration, testing, and development
+            purposes only. It is NOT intended for live clinical, hospital-floor, patient-care, or
+            production use. All records, patient information, reports, schedules, and datasets
+            displayed within this application are artificial, fictional, and generated solely for
+            testing purposes.
+          </span>
+        </div>
+      </div>
+
       <div
         className={isMenuOpen ? 'sidebar-overlay visible' : 'sidebar-overlay'}
         onClick={() => setIsMenuOpen(false)}
