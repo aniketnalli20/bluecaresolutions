@@ -15,6 +15,8 @@ const navItems = [
 ]
 
 const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled']
+const emptyList = []
+const emptyObject = {}
 
 const initialPatientForm = {
   full_name: '',
@@ -81,6 +83,7 @@ const initialInvoiceForm = {
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [emrData, setEmrData] = useState(null)
+  const [localIdSeed, setLocalIdSeed] = useState(10000)
   const [statusMessage, setStatusMessage] = useState('Loading EMR workspace...')
   const [patientSearch, setPatientSearch] = useState('')
   const [patientFilter, setPatientFilter] = useState('All')
@@ -107,14 +110,14 @@ function App() {
     loadData()
   }, [])
 
-  const patients = emrData?.patients || []
-  const doctors = emrData?.doctors || []
-  const appointments = emrData?.appointments || []
-  const consultations = emrData?.consultations || []
-  const prescriptions = emrData?.prescriptions || []
-  const invoices = emrData?.invoices || []
-  const notifications = emrData?.notifications || []
-  const reports = emrData?.reports || {}
+  const patients = emrData?.patients ?? emptyList
+  const doctors = emrData?.doctors ?? emptyList
+  const appointments = emrData?.appointments ?? emptyList
+  const consultations = emrData?.consultations ?? emptyList
+  const prescriptions = emrData?.prescriptions ?? emptyList
+  const invoices = emrData?.invoices ?? emptyList
+  const notifications = emrData?.notifications ?? emptyList
+  const reports = emrData?.reports ?? emptyObject
   const dashboard = emrData?.dashboard
 
   const filteredPatients = useMemo(() => {
@@ -193,9 +196,10 @@ function App() {
             : await updateResource(resourcePath, payload)
       } else {
         record = {
-          id: payload.id || Date.now(),
+          id: payload.id || localIdSeed,
           ...payload,
         }
+        setLocalIdSeed((current) => current + 1)
       }
 
       onLocalApply(record)
