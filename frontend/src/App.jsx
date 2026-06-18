@@ -87,6 +87,7 @@ const initialInvoiceForm = {
 
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState(null)
   const [statusMessage, setStatusMessage] = useState('Preparing your care workspace...')
   const [patientSearch, setPatientSearch] = useState('')
@@ -109,6 +110,14 @@ function App() {
 
     loadWorkspace()
   }, [])
+
+  useEffect(() => {
+    document.body.style.overflow = isMenuOpen ? 'hidden' : ''
+
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMenuOpen])
 
   const patients = workspace?.patients ?? emptyList
   const doctors = workspace?.doctors ?? emptyList
@@ -396,13 +405,24 @@ function App() {
     setStatusMessage('Starter records have been refreshed.')
   }
 
+  function changeView(view) {
+    setActiveView(view)
+    setIsMenuOpen(false)
+  }
+
   if (!workspace) {
     return <div className="loading-screen">Preparing BlueCare EMR...</div>
   }
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <div
+        className={isMenuOpen ? 'sidebar-overlay visible' : 'sidebar-overlay'}
+        onClick={() => setIsMenuOpen(false)}
+        aria-hidden={!isMenuOpen}
+      />
+
+      <aside className={isMenuOpen ? 'sidebar open' : 'sidebar'}>
         <div className="sidebar-top">
           <div className="brand-mark">
             <Icon name="pulse" />
@@ -420,7 +440,7 @@ function App() {
               key={item.key}
               type="button"
               className={activeView === item.key ? 'nav-button active' : 'nav-button'}
-              onClick={() => setActiveView(item.key)}
+              onClick={() => changeView(item.key)}
             >
               <span className="nav-icon">
                 <Icon name={item.icon} />
@@ -440,6 +460,26 @@ function App() {
       </aside>
 
       <main className="workspace">
+        <header className="mobile-topbar">
+          <button
+            type="button"
+            className="menu-toggle"
+            onClick={() => setIsMenuOpen((current) => !current)}
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            <Icon name={isMenuOpen ? 'close' : 'menu'} />
+          </button>
+          <div className="mobile-brand">
+            <span className="mobile-brand-mark">
+              <Icon name="pulse" />
+            </span>
+            <div>
+              <small>BlueCare Solutions</small>
+              <strong>{activeView}</strong>
+            </div>
+          </div>
+        </header>
+
         <header className="hero-banner">
           <div className="hero-copy">
             <p className="eyebrow">Care Overview</p>
@@ -452,7 +492,7 @@ function App() {
               <button type="button" className="primary-button" onClick={() => setActiveView('Appointments')}>
                 Open Today&apos;s Visits
               </button>
-              <button type="button" className="ghost-button" onClick={() => setActiveView('Patients')}>
+              <button type="button" className="ghost-button" onClick={() => changeView('Patients')}>
                 Review Patients
               </button>
             </div>
@@ -490,7 +530,7 @@ function App() {
               title="Upcoming Appointments"
               subtitle="The next few visits at a glance"
               actionLabel="Open schedule"
-              onAction={() => setActiveView('Appointments')}
+              onAction={() => changeView('Appointments')}
             >
               <DataTable
                 columns={['Patient', 'Doctor', 'Date', 'Status']}
@@ -527,25 +567,25 @@ function App() {
                     icon="patients"
                     title="Add patient"
                     text="Open a new profile and capture care details."
-                    onClick={() => setActiveView('Patients')}
+                    onClick={() => changeView('Patients')}
                   />
                   <QuickActionCard
                     icon="calendar"
                     title="Book visit"
                     text="Set the next appointment and keep the day moving."
-                    onClick={() => setActiveView('Appointments')}
+                    onClick={() => changeView('Appointments')}
                   />
                   <QuickActionCard
                     icon="clipboard"
                     title="Write note"
                     text="Create a consultation record with a treatment plan."
-                    onClick={() => setActiveView('Consultations')}
+                    onClick={() => changeView('Consultations')}
                   />
                   <QuickActionCard
                     icon="wallet"
                     title="Create invoice"
                     text="Record charges, payments, and balances."
-                    onClick={() => setActiveView('Billing')}
+                    onClick={() => changeView('Billing')}
                   />
                 </div>
               </Panel>
@@ -600,27 +640,44 @@ function App() {
                         <div>
                           <p className="eyebrow">Patient Profile</p>
                           <h3>{selectedPatient.full_name}</h3>
-                          <p>
-                            {selectedPatient.gender} • {selectedPatient.date_of_birth} •{' '}
-                            {selectedPatient.blood_group || 'Blood group not added'}
-                          </p>
+                          <div className="patient-profile-meta">
+                            <span className="meta-pill">{selectedPatient.gender}</span>
+                            <span className="meta-pill">{selectedPatient.date_of_birth}</span>
+                            <span className="meta-pill">
+                              {selectedPatient.blood_group || 'Blood group not added'}
+                            </span>
+                          </div>
                         </div>
-                        <button type="button" className="ghost-button" onClick={() => loadPatientIntoForm(selectedPatient)}>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => loadPatientIntoForm(selectedPatient)}
+                        >
                           Edit profile
                         </button>
                       </div>
 
-                      <div className="mini-grid">
-                        <InfoCard label="Allergies" value={selectedPatient.allergies || 'None noted'} />
-                        <InfoCard
+                      <div className="patient-summary-grid">
+                        <SummaryTile
+                          icon="alert"
+                          label="Allergies"
+                          value={selectedPatient.allergies || 'None noted'}
+                        />
+                        <SummaryTile
+                          icon="clipboard"
                           label="Conditions"
                           value={selectedPatient.conditions || 'No long-term condition'}
                         />
-                        <InfoCard
+                        <SummaryTile
+                          icon="phone"
                           label="Emergency Contact"
                           value={selectedPatient.emergency_contact || 'Not added yet'}
                         />
-                        <InfoCard label="Last Visit" value={selectedPatient.last_visit_at || 'No visit yet'} />
+                        <SummaryTile
+                          icon="calendar"
+                          label="Last Visit"
+                          value={selectedPatient.last_visit_at || 'No visit yet'}
+                        />
                       </div>
 
                       <div className="detail-card">
@@ -844,20 +901,35 @@ function App() {
             <Panel title="Doctor Profiles" subtitle="Track specialties, availability, and current appointment load">
               <div className="card-grid">
                 {doctorSummary.map((doctor) => (
-                  <article key={doctor.id} className="info-panel emphasis">
-                    <div className="panel-icon-row">
-                      <span className="panel-icon">
+                  <article key={doctor.id} className="doctor-card">
+                    <div className="doctor-card-top">
+                      <div className="doctor-avatar">
                         <Icon name="stethoscope" />
+                      </div>
+                      <div className="doctor-heading">
+                        <span className="soft-pill">{doctor.specialization}</span>
+                        <h3>{doctor.full_name}</h3>
+                        <p>{doctor.availability}</p>
+                      </div>
+                    </div>
+
+                    <div className="doctor-stats">
+                      <div className="doctor-stat">
+                        <small>Status</small>
+                        <strong>{doctor.status}</strong>
+                      </div>
+                      <div className="doctor-stat">
+                        <small>Visits</small>
+                        <strong>{doctor.assigned_appointments}</strong>
+                      </div>
+                    </div>
+
+                    <div className="doctor-highlight">
+                      <span className="doctor-highlight-icon">
+                        <Icon name="chart" />
                       </span>
-                      <span className="soft-pill">{doctor.specialization}</span>
+                      <small>{doctor.consultation_history}</small>
                     </div>
-                    <h3>{doctor.full_name}</h3>
-                    <p>{doctor.availability}</p>
-                    <div className="mini-grid narrow">
-                      <InfoCard label="Status" value={doctor.status} />
-                      <InfoCard label="Visits" value={doctor.assigned_appointments} />
-                    </div>
-                    <small>{doctor.consultation_history}</small>
                   </article>
                 ))}
               </div>
@@ -1342,15 +1414,6 @@ function StatCard({ icon, label, value }) {
   )
 }
 
-function InfoCard({ label, value }) {
-  return (
-    <article className="info-card">
-      <small>{label}</small>
-      <strong>{value}</strong>
-    </article>
-  )
-}
-
 function Panel({ title, subtitle, children, actionLabel, onAction }) {
   return (
     <section className="panel">
@@ -1391,6 +1454,18 @@ function EmptyState({ title, text }) {
       <h3>{title}</h3>
       <p>{text}</p>
     </div>
+  )
+}
+
+function SummaryTile({ icon, label, value }) {
+  return (
+    <article className="summary-tile">
+      <span className="summary-tile-icon">
+        <Icon name={icon} />
+      </span>
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </article>
   )
 }
 
@@ -1447,6 +1522,8 @@ function ReportCard({ title, icon, items, onExport }) {
 
 function Icon({ name }) {
   const paths = {
+    alert:
+      'M12 5.5 19 18H5l7-12.5Zm0 4.2v3.6m0 2.4h.01',
     bell: 'M12 4a4 4 0 0 1 4 4v1.2c0 .9.3 1.8.9 2.5l.8.9c.7.8.1 2.1-1 2.1H7.3c-1.1 0-1.7-1.3-1-2.1l.8-.9c.6-.7.9-1.6.9-2.5V8a4 4 0 0 1 4-4Zm0 14a2.2 2.2 0 0 0 2.1-1.5H9.9A2.2 2.2 0 0 0 12 18Z',
     calendar:
       'M7 3v2M17 3v2M4 8h16M5.5 5h13A1.5 1.5 0 0 1 20 6.5v10A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5v-10A1.5 1.5 0 0 1 5.5 5Z',
@@ -1454,10 +1531,14 @@ function Icon({ name }) {
     chart: 'M5 18V9M12 18V5M19 18v-7M3 19h18',
     clipboard:
       'M9 4h6a1 1 0 0 1 1 1v1h1.5A1.5 1.5 0 0 1 19 7.5v11A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-11A1.5 1.5 0 0 1 6.5 6H8V5a1 1 0 0 1 1-1Zm0 3h6V6H9v1Z',
+    close: 'M6 6 18 18M18 6 6 18',
     grid: 'M5 5h5v5H5V5Zm9 0h5v5h-5V5ZM5 14h5v5H5v-5Zm9 0h5v5h-5v-5Z',
     patients:
       'M8 12a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm8-1a2.5 2.5 0 1 0-2.5-2.5A2.5 2.5 0 0 0 16 11Zm-8 2c-2.8 0-5 1.4-5 3v1h10v-1c0-1.6-2.2-3-5-3Zm8 .5c-1 0-1.9.2-2.7.6.8.7 1.2 1.5 1.2 2.4v.5H20v-.4c0-1.6-1.8-3.1-4-3.1Z',
+    phone:
+      'M6.8 4.5h2.1l1.1 3.2-1.3 1.2a13 13 0 0 0 6.3 6.3l1.2-1.3 3.2 1.1v2.1a1.5 1.5 0 0 1-1.7 1.5A16.8 16.8 0 0 1 5.3 6.2 1.5 1.5 0 0 1 6.8 4.5Z',
     pulse: 'M3 13h4l2.2-5.2L13 16l2.4-5H21',
+    menu: 'M4 7h16M4 12h16M4 17h16',
     search: 'm19 19-3.5-3.5M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13Z',
     stethoscope:
       'M8 4v5a4 4 0 1 0 8 0V4M8 7H6m10 0h2M12 13v3a3 3 0 1 0 6 0v-1.5a1.5 1.5 0 1 0-1.5-1.5',
@@ -1499,15 +1580,17 @@ function exportCsv(filename, rows) {
 }
 
 function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     maximumFractionDigits: 0,
   }).format(Number(amount || 0))
 }
 
 function formatReportValue(title, value) {
-  return title === 'Revenue Report' ? formatCurrency(value) : Number(value || 0).toLocaleString()
+  return title === 'Revenue Report'
+    ? formatCurrency(value)
+    : Number(value || 0).toLocaleString('en-IN')
 }
 
 export default App
