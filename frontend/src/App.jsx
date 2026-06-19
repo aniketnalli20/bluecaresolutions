@@ -123,6 +123,7 @@ function App() {
   const [invoiceForm, setInvoiceForm] = useState(initialInvoiceForm)
   const refreshSoundRef = useRef(null)
   const searchRef = useRef(null)
+  const lastScrollYRef = useRef(window.scrollY)
   const toastTimersRef = useRef([])
 
   const playMajorActionSound = useCallback(() => {
@@ -223,6 +224,25 @@ function App() {
     document.addEventListener('pointerdown', handleOutsideSearchClick)
     return () => document.removeEventListener('pointerdown', handleOutsideSearchClick)
   }, [])
+
+  useEffect(() => {
+    function handleScroll() {
+      const currentScrollY = window.scrollY
+      const isScrollingUp = currentScrollY < lastScrollYRef.current
+      const hasMeaningfulMovement = Math.abs(currentScrollY - lastScrollYRef.current) > 8
+
+      if (isSearchOpen && isScrollingUp && hasMeaningfulMovement) {
+        setIsSearchOpen(false)
+        setActiveSearchCursor(0)
+      }
+
+      lastScrollYRef.current = currentScrollY
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isSearchOpen])
 
   useEffect(
     () => () => {
