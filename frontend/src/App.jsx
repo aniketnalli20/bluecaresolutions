@@ -27,6 +27,7 @@ const refreshSoundPath = '/sounds/soft-success_HGK0kiS.mp3'
 const themeStorageKey = 'bluecare-theme'
 const skeletonDelayMs = 320
 const toastDurationMs = 3200
+const compactLayoutQuery = '(max-width: 1240px)'
 
 const initialPatientForm = {
   full_name: '',
@@ -93,6 +94,9 @@ const initialInvoiceForm = {
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isCompactLayout, setIsCompactLayout] = useState(() =>
+    window.matchMedia(compactLayoutQuery).matches,
+  )
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem(themeStorageKey)
     if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -108,7 +112,7 @@ function App() {
   const [patientFilter, setPatientFilter] = useState('All')
   const [globalQuery, setGlobalQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
+  const [activeSearchCursor, setActiveSearchCursor] = useState(0)
   const [toasts, setToasts] = useState([])
   const [selectedPatientId, setSelectedPatientId] = useState(null)
   const [patientForm, setPatientForm] = useState(initialPatientForm)
@@ -193,20 +197,32 @@ function App() {
   }, [isMenuOpen])
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia(compactLayoutQuery)
+
+    function syncCompactLayout(event) {
+      setIsCompactLayout(event.matches)
+      if (!event.matches) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    syncCompactLayout(mediaQuery)
+    mediaQuery.addEventListener('change', syncCompactLayout)
+
+    return () => mediaQuery.removeEventListener('change', syncCompactLayout)
+  }, [])
+
+  useEffect(() => {
     function handleOutsideSearchClick(event) {
       if (!searchRef.current?.contains(event.target)) {
         setIsSearchOpen(false)
-        setActiveSearchIndex(-1)
+        setActiveSearchCursor(0)
       }
     }
 
     document.addEventListener('pointerdown', handleOutsideSearchClick)
     return () => document.removeEventListener('pointerdown', handleOutsideSearchClick)
   }, [])
-
-  useEffect(() => {
-    setActiveSearchIndex(visibleSearchItems.length ? 0 : -1)
-  }, [globalQuery, visibleSearchItems.length])
 
   useEffect(
     () => () => {
@@ -489,6 +505,9 @@ function App() {
   )
 
   const visibleSearchItems = globalQuery.trim() ? globalSearchResults : searchSuggestions
+  const activeSearchIndex = visibleSearchItems.length
+    ? Math.min(activeSearchCursor, visibleSearchItems.length - 1)
+    : -1
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
@@ -504,6 +523,7 @@ function App() {
     (result) => {
       setGlobalQuery('')
       setIsSearchOpen(false)
+      setActiveSearchCursor(0)
 
       if (result.kind === 'patient' && result.recordId) {
         setSelectedPatientId(result.recordId)
@@ -522,19 +542,19 @@ function App() {
       if (!isSearchOpen || !visibleSearchItems.length) {
         if (event.key === 'ArrowDown' && visibleSearchItems.length) {
           setIsSearchOpen(true)
-          setActiveSearchIndex(0)
+          setActiveSearchCursor(0)
         }
         return
       }
 
       if (event.key === 'ArrowDown') {
         event.preventDefault()
-        setActiveSearchIndex((current) => (current + 1) % visibleSearchItems.length)
+        setActiveSearchCursor((current) => (current + 1) % visibleSearchItems.length)
       }
 
       if (event.key === 'ArrowUp') {
         event.preventDefault()
-        setActiveSearchIndex((current) =>
+        setActiveSearchCursor((current) =>
           current <= 0 ? visibleSearchItems.length - 1 : current - 1,
         )
       }
@@ -546,7 +566,7 @@ function App() {
 
       if (event.key === 'Escape') {
         setIsSearchOpen(false)
-        setActiveSearchIndex(-1)
+        setActiveSearchCursor(0)
       }
     },
     [activeSearchIndex, handleGlobalResultSelect, isSearchOpen, visibleSearchItems],
@@ -877,19 +897,21 @@ function App() {
       <main className="workspace">
         <header className="workspace-topbar">
           <div className="topbar-leading">
-            <button
-              type="button"
-              className={isMenuOpen ? 'menu-toggle mobile-only active' : 'menu-toggle mobile-only'}
-              onClick={() => setIsMenuOpen((current) => !current)}
-              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={isMenuOpen}
-            >
-              <span className="menu-toggle-bars" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-            </button>
+            {isCompactLayout ? (
+              <button
+                type="button"
+                className={isMenuOpen ? 'menu-toggle mobile-only active' : 'menu-toggle mobile-only'}
+                onClick={() => setIsMenuOpen((current) => !current)}
+                aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isMenuOpen}
+              >
+                <span className="menu-toggle-bars" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              </button>
+            ) : null}
 
             <button type="button" className="brand-chip" onClick={() => changeView('Dashboard')}>
               <span className="brand-chip-mark">
@@ -916,12 +938,14 @@ function App() {
               onKeyDown={handleGlobalSearchKeyDown}
               placeholder="Search patients, doctors, visits, invoices, and pages"
               aria-label="Global search"
+              role="combobox"
               aria-expanded={isSearchOpen}
+              aria-controls="global-search-results"
               aria-activedescendant={activeSearchIndex >= 0 ? visibleSearchItems[activeSearchIndex]?.id : undefined}
             />
 
             {isSearchOpen ? (
-              <div className="global-search-panel">
+              <div className="global-search-panel" id="global-search-results" role="listbox">
                 {globalQuery.trim() ? (
                   globalSearchResults.length ? (
                     <div className="global-search-results">
@@ -930,6 +954,8 @@ function App() {
                           key={result.id}
                           type="button"
                           id={result.id}
+                          role="option"
+                          aria-selected={index === activeSearchIndex}
                           className={index === activeSearchIndex ? 'search-result active' : 'search-result'}
                           onClick={() => handleGlobalResultSelect(result)}
                         >
@@ -958,6 +984,8 @@ function App() {
                           key={item.id}
                           type="button"
                           id={item.id}
+                          role="option"
+                          aria-selected={index === activeSearchIndex}
                           className={index === activeSearchIndex ? 'search-suggestion active' : 'search-suggestion'}
                           onClick={() => handleGlobalResultSelect(item)}
                         >
@@ -1088,6 +1116,8 @@ function App() {
                 <EmptyState
                   title="No upcoming appointments"
                   text="Fresh bookings and rescheduled visits will appear here."
+                  icon="calendar"
+                  eyebrow="Schedule"
                   compact
                 />
               )}
@@ -1114,6 +1144,8 @@ function App() {
                   <EmptyState
                     title="No recent activity"
                     text="Patient updates will appear here after records are changed."
+                    icon="patients"
+                    eyebrow="Activity"
                     compact
                   />
                 )}
@@ -1262,7 +1294,12 @@ function App() {
                       </div>
                     </>
                   ) : (
-                    <EmptyState title="No patient selected" text="Choose a patient to review the full profile." />
+                    <EmptyState
+                      title="No patient selected"
+                      text="Choose a patient to review the full profile."
+                      icon="patients"
+                      eyebrow="Patient Desk"
+                    />
                   )}
                 </div>
               </div>
@@ -1455,6 +1492,8 @@ function App() {
                 <EmptyState
                   title="No appointments scheduled"
                   text="Newly booked visits will appear here once the day plan is prepared."
+                  icon="calendar"
+                  eyebrow="Visit Planning"
                 />
               )}
             </Panel>
@@ -1671,6 +1710,8 @@ function App() {
                 <EmptyState
                   title="No consultation history"
                   text="Saved consultation notes and visit records will appear here."
+                  icon="clipboard"
+                  eyebrow="Clinical Notes"
                 />
               )}
             </Panel>
@@ -1774,6 +1815,8 @@ function App() {
                 <EmptyState
                   title="No prescriptions ready"
                   text="Prepared prescriptions will appear here for quick download."
+                  icon="capsule"
+                  eyebrow="Medication Desk"
                 />
               )}
             </Panel>
@@ -1893,6 +1936,8 @@ function App() {
                 <EmptyState
                   title="No invoices yet"
                   text="Saved invoices and receipts will appear here after billing is created."
+                  icon="wallet"
+                  eyebrow="Billing Desk"
                 />
               )}
             </Panel>
@@ -1978,6 +2023,8 @@ function App() {
                 <EmptyState
                   title="No notifications yet"
                   text="Upcoming visits, follow-ups, and billing reminders will appear here."
+                  icon="bell"
+                  eyebrow="Reminder Center"
                 />
               )}
             </Panel>
@@ -2111,12 +2158,17 @@ function QuickActionCard({ icon, title, text, onClick }) {
   )
 }
 
-function EmptyState({ title, text, compact = false }) {
+function EmptyState({ title, text, compact = false, icon = 'grid', eyebrow = 'Clear Space' }) {
   return (
     <div className={compact ? 'empty-state compact' : 'empty-state'}>
-      <span className="panel-icon">
-        <Icon name="grid" />
-      </span>
+      <div className="empty-state-visual" aria-hidden="true">
+        <span className="empty-state-orb orb-one"></span>
+        <span className="empty-state-orb orb-two"></span>
+        <span className="panel-icon empty-state-icon">
+          <Icon name={icon} />
+        </span>
+      </div>
+      <small className="empty-state-eyebrow">{eyebrow}</small>
       <h3>{title}</h3>
       <p>{text}</p>
     </div>
@@ -2126,10 +2178,12 @@ function EmptyState({ title, text, compact = false }) {
 function SummaryTile({ icon, label, value }) {
   return (
     <article className="summary-tile">
-      <span className="summary-tile-icon">
-        <Icon name={icon} />
-      </span>
-      <small>{label}</small>
+      <div className="summary-tile-top">
+        <span className="summary-tile-icon">
+          <Icon name={icon} />
+        </span>
+        <small>{label}</small>
+      </div>
       <strong>{value}</strong>
     </article>
   )
@@ -2181,7 +2235,13 @@ function ReportCard({ title, icon, items, onExport }) {
           ))}
         </ul>
       ) : (
-        <EmptyState compact title="No report data" text="This report will populate when records are available." />
+        <EmptyState
+          compact
+          title="No report data"
+          text="This report will populate when records are available."
+          icon={icon}
+          eyebrow="Insights"
+        />
       )}
       <button type="button" className="ghost-button" onClick={onExport}>
         Export CSV
