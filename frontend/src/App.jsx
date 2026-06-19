@@ -214,6 +214,11 @@ function App() {
   }, [])
 
   useEffect(() => {
+    setIsSearchOpen(false)
+    setActiveSearchCursor(0)
+  }, [activeView])
+
+  useEffect(() => {
     function handleOutsideSearchClick(event) {
       if (!searchRef.current?.contains(event.target)) {
         setIsSearchOpen(false)
@@ -228,10 +233,9 @@ function App() {
   useEffect(() => {
     function handleScroll() {
       const currentScrollY = window.scrollY
-      const isScrollingUp = currentScrollY < lastScrollYRef.current
       const hasMeaningfulMovement = Math.abs(currentScrollY - lastScrollYRef.current) > 8
 
-      if (isSearchOpen && isScrollingUp && hasMeaningfulMovement) {
+      if (isSearchOpen && hasMeaningfulMovement) {
         setIsSearchOpen(false)
         setActiveSearchCursor(0)
       }
