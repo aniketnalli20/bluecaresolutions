@@ -108,6 +108,7 @@ function App() {
   const [patientFilter, setPatientFilter] = useState('All')
   const [globalQuery, setGlobalQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
   const [toasts, setToasts] = useState([])
   const [selectedPatientId, setSelectedPatientId] = useState(null)
   const [patientForm, setPatientForm] = useState(initialPatientForm)
@@ -195,12 +196,17 @@ function App() {
     function handleOutsideSearchClick(event) {
       if (!searchRef.current?.contains(event.target)) {
         setIsSearchOpen(false)
+        setActiveSearchIndex(-1)
       }
     }
 
     document.addEventListener('pointerdown', handleOutsideSearchClick)
     return () => document.removeEventListener('pointerdown', handleOutsideSearchClick)
   }, [])
+
+  useEffect(() => {
+    setActiveSearchIndex(visibleSearchItems.length ? 0 : -1)
+  }, [globalQuery, visibleSearchItems.length])
 
   useEffect(
     () => () => {
@@ -470,9 +476,19 @@ function App() {
   }, [appointments, doctors, globalQuery, invoices, notifications, patients])
 
   const searchSuggestions = useMemo(
-    () => [...navItems.slice(0, 4), { key: 'Profile', label: 'Profile', icon: 'user' }],
+    () =>
+      [...navItems.slice(0, 4), { key: 'Profile', label: 'Profile', icon: 'user' }].map((item) => ({
+        id: `suggestion-${item.key}`,
+        kind: 'page',
+        icon: item.icon,
+        title: item.label,
+        subtitle: 'Open workspace section',
+        view: item.key,
+      })),
     [],
   )
+
+  const visibleSearchItems = globalQuery.trim() ? globalSearchResults : searchSuggestions
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
@@ -499,6 +515,41 @@ function App() {
       changeView(result.view)
     },
     [changeView],
+  )
+
+  const handleGlobalSearchKeyDown = useCallback(
+    (event) => {
+      if (!isSearchOpen || !visibleSearchItems.length) {
+        if (event.key === 'ArrowDown' && visibleSearchItems.length) {
+          setIsSearchOpen(true)
+          setActiveSearchIndex(0)
+        }
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setActiveSearchIndex((current) => (current + 1) % visibleSearchItems.length)
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setActiveSearchIndex((current) =>
+          current <= 0 ? visibleSearchItems.length - 1 : current - 1,
+        )
+      }
+
+      if (event.key === 'Enter' && activeSearchIndex >= 0) {
+        event.preventDefault()
+        handleGlobalResultSelect(visibleSearchItems[activeSearchIndex])
+      }
+
+      if (event.key === 'Escape') {
+        setIsSearchOpen(false)
+        setActiveSearchIndex(-1)
+      }
+    },
+    [activeSearchIndex, handleGlobalResultSelect, isSearchOpen, visibleSearchItems],
   )
 
   const handleReportExport = useCallback(
@@ -862,8 +913,11 @@ function App() {
                 setIsSearchOpen(true)
               }}
               onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={handleGlobalSearchKeyDown}
               placeholder="Search patients, doctors, visits, invoices, and pages"
               aria-label="Global search"
+              aria-expanded={isSearchOpen}
+              aria-activedescendant={activeSearchIndex >= 0 ? visibleSearchItems[activeSearchIndex]?.id : undefined}
             />
 
             {isSearchOpen ? (
@@ -871,11 +925,12 @@ function App() {
                 {globalQuery.trim() ? (
                   globalSearchResults.length ? (
                     <div className="global-search-results">
-                      {globalSearchResults.map((result) => (
+                      {globalSearchResults.map((result, index) => (
                         <button
                           key={result.id}
                           type="button"
-                          className="search-result"
+                          id={result.id}
+                          className={index === activeSearchIndex ? 'search-result active' : 'search-result'}
                           onClick={() => handleGlobalResultSelect(result)}
                         >
                           <span className="search-result-icon">
@@ -898,21 +953,16 @@ function App() {
                   <div className="search-suggestions">
                     <small>Quick jump</small>
                     <div className="search-suggestion-list">
-                      {searchSuggestions.map((item) => (
+                      {searchSuggestions.map((item, index) => (
                         <button
-                          key={item.key}
+                          key={item.id}
                           type="button"
-                          className="search-suggestion"
-                          onClick={() =>
-                            handleGlobalResultSelect({
-                              kind: 'page',
-                              title: item.label,
-                              view: item.key,
-                            })
-                          }
+                          id={item.id}
+                          className={index === activeSearchIndex ? 'search-suggestion active' : 'search-suggestion'}
+                          onClick={() => handleGlobalResultSelect(item)}
                         >
                           <Icon name={item.icon} />
-                          <span>{item.label}</span>
+                          <span>{item.title}</span>
                         </button>
                       ))}
                     </div>
@@ -942,8 +992,9 @@ function App() {
           </div>
         </header>
 
-        {activeView === 'Dashboard' ? (
-          <>
+        <div key={activeView} className="view-transition">
+          {activeView === 'Dashboard' ? (
+            <>
             <header className="hero-banner">
               <div className="hero-copy">
                 <p className="eyebrow">Care Overview</p>
@@ -1006,16 +1057,16 @@ function App() {
                 format="currency"
               />
             </section>
-          </>
-        ) : currentViewMeta ? (
-          <section className="page-intro panel">
-            <p className="eyebrow">{currentViewMeta.eyebrow}</p>
-            <h2>{currentViewMeta.title}</h2>
-            <p>{currentViewMeta.text}</p>
-          </section>
-        ) : null}
+            </>
+          ) : currentViewMeta ? (
+            <section className="page-intro panel">
+              <p className="eyebrow">{currentViewMeta.eyebrow}</p>
+              <h2>{currentViewMeta.title}</h2>
+              <p>{currentViewMeta.text}</p>
+            </section>
+          ) : null}
 
-        {activeView === 'Dashboard' && (
+          {activeView === 'Dashboard' && (
           <section className="content-grid">
             <Panel
               title="Upcoming Appointments"
@@ -1098,9 +1149,9 @@ function App() {
               </Panel>
             </div>
           </section>
-        )}
+          )}
 
-        {activeView === 'Patients' && (
+          {activeView === 'Patients' && (
           <section className="content-grid">
             <Panel title="Patient Management" subtitle="Search, filter, review, and refine every profile">
               <div className="toolbar">
@@ -1295,9 +1346,9 @@ function App() {
               </form>
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Appointments' && (
+          {activeView === 'Appointments' && (
           <section className="content-grid">
             <Panel title="Schedule Appointments" subtitle="Plan visits, adjust timing, and guide patient flow">
               <form className="form-grid" onSubmit={handleAppointmentSubmit}>
@@ -1408,9 +1459,9 @@ function App() {
               )}
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Doctors' && (
+          {activeView === 'Doctors' && (
           <section className="content-grid">
             <Panel title="Doctor Profiles" subtitle="Track specialties, availability, and current appointment load">
               <div className="card-grid">
@@ -1497,9 +1548,9 @@ function App() {
               </form>
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Consultations' && (
+          {activeView === 'Consultations' && (
           <section className="content-grid">
             <Panel title="Consultation Records" subtitle="Capture notes, diagnoses, plans, and supporting files">
               <form className="form-grid" onSubmit={handleConsultationSubmit}>
@@ -1624,9 +1675,9 @@ function App() {
               )}
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Prescriptions' && (
+          {activeView === 'Prescriptions' && (
           <section className="content-grid">
             <Panel title="Prescription Management" subtitle="Prepare medicine lists with clear dosage guidance">
               <form className="form-grid" onSubmit={handlePrescriptionSubmit}>
@@ -1727,9 +1778,9 @@ function App() {
               )}
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Billing' && (
+          {activeView === 'Billing' && (
           <section className="content-grid">
             <Panel title="Billing" subtitle="Create invoices, log payments, and keep balances visible">
               <form className="form-grid" onSubmit={handleInvoiceSubmit}>
@@ -1846,9 +1897,9 @@ function App() {
               )}
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Reports' && (
+          {activeView === 'Reports' && (
           <section className="content-grid">
             <Panel title="Reports" subtitle="Export clear summaries for patients, visits, revenue, and care activity">
               <div className="card-grid">
@@ -1895,9 +1946,9 @@ function App() {
               </div>
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Notifications' && (
+          {activeView === 'Notifications' && (
           <section className="content-grid">
             <Panel title="Notifications" subtitle="Stay ahead of visits, follow-ups, and pending balances">
               {notifications.length ? (
@@ -1931,9 +1982,9 @@ function App() {
               )}
             </Panel>
           </section>
-        )}
+          )}
 
-        {activeView === 'Profile' && (
+          {activeView === 'Profile' && (
           <section className="content-grid">
             <Panel
               title="User Profile"
@@ -1947,6 +1998,9 @@ function App() {
                     Account details, preferences, personal activity, and quick settings will be
                     added here in a future update.
                   </p>
+                  <button type="button" className="ghost-button profile-theme-toggle" onClick={toggleTheme}>
+                    Turn on {theme === 'dark' ? 'light' : 'dark'} mode from profile
+                  </button>
                 </div>
                 <img
                   src={roadblockImage}
@@ -1956,7 +2010,8 @@ function App() {
               </div>
             </Panel>
           </section>
-        )}
+          )}
+        </div>
 
         <div className="toast-stack" aria-live="polite" aria-atomic="true">
           {toasts.map((toast) => (
