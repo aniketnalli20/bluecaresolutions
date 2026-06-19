@@ -63,9 +63,3 @@ npm run build
 - Changes are saved on the current device through the browser
 - Use the refresh button in the sidebar if you want to restore the starter records
 
-## Design Direction
-
-- Uses the Coolors palette [03045e-0077b6-00b4d8-90e0ef-caf0f8](https://coolors.co/palette/03045e-0077b6-00b4d8-90e0ef-caf0f8)
-- Uses `Manrope` as the primary display and interface font
-- Keeps the layout bright, readable, and calm for long sessions
-- Uses simple built-in icons instead of emoji
