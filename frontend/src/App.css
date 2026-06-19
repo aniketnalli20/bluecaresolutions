@@ -670,6 +670,14 @@
   gap: 16px;
 }
 
+.hero-banner + .top-strip {
+  margin-top: 6px;
+}
+
+.top-strip + .content-grid {
+  margin-top: 18px;
+}
+
 .top-strip.compact {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
