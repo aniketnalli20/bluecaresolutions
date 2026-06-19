@@ -24,6 +24,9 @@ const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled'
 const emptyList = []
 const emptyObject = {}
 const refreshSoundPath = '/sounds/soft-success_HGK0kiS.mp3'
+const themeStorageKey = 'bluecare-theme'
+const skeletonDelayMs = 320
+const toastDurationMs = 3200
 
 const initialPatientForm = {
   full_name: '',
@@ -90,10 +93,22 @@ const initialInvoiceForm = {
 function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem(themeStorageKey)
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      return savedTheme
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
   const [workspace, setWorkspace] = useState(null)
+  const [isHydrating, setIsHydrating] = useState(true)
   const [statusMessage, setStatusMessage] = useState('Preparing your care workspace...')
   const [patientSearch, setPatientSearch] = useState('')
   const [patientFilter, setPatientFilter] = useState('All')
+  const [globalQuery, setGlobalQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [toasts, setToasts] = useState([])
   const [selectedPatientId, setSelectedPatientId] = useState(null)
   const [patientForm, setPatientForm] = useState(initialPatientForm)
   const [appointmentForm, setAppointmentForm] = useState(initialAppointmentForm)
@@ -102,6 +117,8 @@ function App() {
   const [prescriptionForm, setPrescriptionForm] = useState(initialPrescriptionForm)
   const [invoiceForm, setInvoiceForm] = useState(initialInvoiceForm)
   const refreshSoundRef = useRef(null)
+  const searchRef = useRef(null)
+  const toastTimersRef = useRef([])
 
   const playMajorActionSound = useCallback(() => {
     if (!refreshSoundRef.current) {
@@ -116,16 +133,55 @@ function App() {
     })
   }, [])
 
+  const pushToast = useCallback((message, tone = 'success') => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    setToasts((current) => [...current.slice(-2), { id, message, tone }])
+
+    const timerId = window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id))
+      toastTimersRef.current = toastTimersRef.current.filter((timer) => timer !== timerId)
+    }, toastDurationMs)
+
+    toastTimersRef.current.push(timerId)
+  }, [])
+
   useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem(themeStorageKey, theme)
+  }, [theme])
+
+  useEffect(() => {
+    let isCancelled = false
+
     async function loadWorkspace() {
-      const data = await loadWorkspaceData()
-      setWorkspace(data)
-      setSelectedPatientId(data.patients[0]?.id || null)
-      setStatusMessage('Everything is ready. Your updates stay saved on this device.')
+      try {
+        const data = await loadWorkspaceData()
+        await new Promise((resolve) => window.setTimeout(resolve, skeletonDelayMs))
+        if (isCancelled) {
+          return
+        }
+        setWorkspace(data)
+        setSelectedPatientId(data.patients[0]?.id || null)
+        setStatusMessage('Everything is ready. Your updates stay saved on this device.')
+      } catch {
+        if (isCancelled) {
+          return
+        }
+        setStatusMessage('We could not prepare the workspace. Please refresh and try again.')
+        pushToast('Could not prepare the workspace.', 'error')
+      } finally {
+        if (!isCancelled) {
+          setIsHydrating(false)
+        }
+      }
     }
 
     loadWorkspace()
-  }, [])
+
+    return () => {
+      isCancelled = true
+    }
+  }, [pushToast])
 
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? 'hidden' : ''
@@ -135,12 +191,25 @@ function App() {
     }
   }, [isMenuOpen])
 
+  useEffect(() => {
+    function handleOutsideSearchClick(event) {
+      if (!searchRef.current?.contains(event.target)) {
+        setIsSearchOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handleOutsideSearchClick)
+    return () => document.removeEventListener('pointerdown', handleOutsideSearchClick)
+  }, [])
+
   useEffect(
     () => () => {
       refreshSoundRef.current?.pause()
       if (refreshSoundRef.current) {
         refreshSoundRef.current.currentTime = 0
       }
+
+      toastTimersRef.current.forEach((timerId) => window.clearTimeout(timerId))
     },
     [],
   )
@@ -294,6 +363,197 @@ function App() {
     [activeView],
   )
 
+  const globalSearchResults = useMemo(() => {
+    const query = globalQuery.trim().toLowerCase()
+    if (!query) {
+      return []
+    }
+
+    const pageResults = [...navItems, { key: 'Profile', label: 'Profile', icon: 'user' }]
+      .filter((item) => item.label.toLowerCase().includes(query))
+      .map((item) => ({
+        id: `page-${item.key}`,
+        kind: 'page',
+        icon: item.icon,
+        title: item.label,
+        subtitle: 'Open workspace section',
+        view: item.key,
+      }))
+
+    const patientResults = patients
+      .filter((patient) =>
+        [patient.full_name, patient.patient_code, patient.phone].some((value) =>
+          String(value || '').toLowerCase().includes(query),
+        ),
+      )
+      .map((patient) => ({
+        id: `patient-${patient.id}`,
+        kind: 'patient',
+        icon: 'patients',
+        title: patient.full_name,
+        subtitle: `${patient.patient_code || 'Patient'} • ${patient.phone || 'No phone'}`,
+        view: 'Patients',
+        recordId: patient.id,
+      }))
+
+    const doctorResults = doctors
+      .filter((doctor) =>
+        [doctor.full_name, doctor.specialization, doctor.availability].some((value) =>
+          String(value || '').toLowerCase().includes(query),
+        ),
+      )
+      .map((doctor) => ({
+        id: `doctor-${doctor.id}`,
+        kind: 'doctor',
+        icon: 'stethoscope',
+        title: doctor.full_name,
+        subtitle: `${doctor.specialization || 'General care'} • ${doctor.availability || 'Schedule pending'}`,
+        view: 'Doctors',
+      }))
+
+    const appointmentResults = appointments
+      .filter((appointment) =>
+        [
+          appointment.patient_name,
+          appointment.doctor_name,
+          appointment.appointment_date,
+          appointment.reason,
+        ].some((value) => String(value || '').toLowerCase().includes(query)),
+      )
+      .map((appointment) => ({
+        id: `appointment-${appointment.id}`,
+        kind: 'appointment',
+        icon: 'calendar',
+        title: `${appointment.patient_name} • ${appointment.appointment_date}`,
+        subtitle: `${appointment.doctor_name || 'No doctor'} • ${appointment.status}`,
+        view: 'Appointments',
+      }))
+
+    const invoiceResults = invoices
+      .filter((invoice) =>
+        [invoice.invoice_number, invoice.patient_name, invoice.payment_status].some((value) =>
+          String(value || '').toLowerCase().includes(query),
+        ),
+      )
+      .map((invoice) => ({
+        id: `invoice-${invoice.id}`,
+        kind: 'invoice',
+        icon: 'wallet',
+        title: `${invoice.invoice_number} • ${invoice.patient_name}`,
+        subtitle: `${invoice.payment_status} • ${formatCurrency(invoice.total_amount)}`,
+        view: 'Billing',
+      }))
+
+    const notificationResults = notifications
+      .filter((notification) =>
+        [notification.title, notification.message, notification.type].some((value) =>
+          String(value || '').toLowerCase().includes(query),
+        ),
+      )
+      .map((notification) => ({
+        id: `notification-${notification.id}`,
+        kind: 'notification',
+        icon: notification.type === 'billing' ? 'wallet' : notification.type === 'follow-up' ? 'clipboard' : 'bell',
+        title: notification.title,
+        subtitle: notification.message,
+        view: 'Notifications',
+      }))
+
+    return [
+      ...pageResults,
+      ...patientResults,
+      ...doctorResults,
+      ...appointmentResults,
+      ...invoiceResults,
+      ...notificationResults,
+    ].slice(0, 10)
+  }, [appointments, doctors, globalQuery, invoices, notifications, patients])
+
+  const searchSuggestions = useMemo(
+    () => [...navItems.slice(0, 4), { key: 'Profile', label: 'Profile', icon: 'user' }],
+    [],
+  )
+
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+  }, [])
+
+  const changeView = useCallback((view) => {
+    setActiveView(view)
+    setIsMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const handleGlobalResultSelect = useCallback(
+    (result) => {
+      setGlobalQuery('')
+      setIsSearchOpen(false)
+
+      if (result.kind === 'patient' && result.recordId) {
+        setSelectedPatientId(result.recordId)
+        setStatusMessage(`${result.title} is ready to review.`)
+      } else {
+        setStatusMessage(`${result.title} opened.`)
+      }
+
+      changeView(result.view)
+    },
+    [changeView],
+  )
+
+  const handleReportExport = useCallback(
+    (filename, rows, label) => {
+      if (!rows.length) {
+        pushToast(`${label} has no data to export.`, 'error')
+        return
+      }
+
+      exportCsv(filename, rows)
+      pushToast(`${label} exported.`, 'success')
+    },
+    [pushToast],
+  )
+
+  const handlePrescriptionDownload = useCallback(
+    (prescription) => {
+      downloadTextFile(
+        `prescription-${prescription.id}.txt`,
+        [
+          `Prescription for ${prescription.patient_name}`,
+          `Doctor: ${prescription.doctor_name}`,
+          `Issued On: ${prescription.issued_on}`,
+          `Notes: ${prescription.notes || 'None'}`,
+          '',
+          'Medicines:',
+          ...(prescription.medicines || []).map(
+            (medicine) => `- ${medicine.name} | ${medicine.dosage} | ${medicine.instructions}`,
+          ),
+        ].join('\n'),
+      )
+      pushToast('Prescription downloaded.', 'success')
+    },
+    [pushToast],
+  )
+
+  const handleReceiptDownload = useCallback(
+    (invoice) => {
+      downloadTextFile(
+        `receipt-${invoice.id}.txt`,
+        [
+          `Receipt for ${invoice.patient_name}`,
+          `Invoice: ${invoice.invoice_number}`,
+          `Consultation: ${formatCurrency(invoice.consultation_charge || 0)}`,
+          `Additional Services: ${formatCurrency(invoice.additional_services || 0)}`,
+          `Total: ${formatCurrency(invoice.total_amount || 0)}`,
+          `Paid: ${formatCurrency(invoice.paid_amount || 0)}`,
+          `Status: ${invoice.payment_status}`,
+        ].join('\n'),
+      )
+      pushToast('Receipt downloaded.', 'success')
+    },
+    [pushToast],
+  )
+
   async function saveRecord({
     mode = 'create',
     collection,
@@ -311,11 +571,13 @@ function App() {
 
       setWorkspace(result.data)
       setStatusMessage(successMessage)
+      pushToast(successMessage, 'success')
       playMajorActionSound()
       resetForm?.()
       afterSave?.(result.record)
     } catch {
       setStatusMessage('We could not save that update. Please try again.')
+      pushToast('We could not save that update. Please try again.', 'error')
     }
   }
 
@@ -486,17 +748,12 @@ function App() {
     setWorkspace(data)
     setSelectedPatientId(data.patients[0]?.id || null)
     setStatusMessage('Starter records have been refreshed.')
+    pushToast('Starter records have been refreshed.', 'success')
     playMajorActionSound()
   }
 
-  function changeView(view) {
-    setActiveView(view)
-    setIsMenuOpen(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  if (!workspace) {
-    return <div className="loading-screen">Preparing BlueCare EMR...</div>
+  if (!workspace || isHydrating) {
+    return <LoadingSkeletonScreen />
   }
 
   return (
@@ -557,6 +814,9 @@ function App() {
         <div className="sidebar-status">
           <p className="eyebrow">Workspace Note</p>
           <p>{statusMessage}</p>
+          <button type="button" className="ghost-button light" onClick={toggleTheme}>
+            Switch to {theme === 'dark' ? 'light' : 'dark'} mode
+          </button>
           <button type="button" className="ghost-button light" onClick={handleResetWorkspace}>
             Refresh Starter Records
           </button>
@@ -564,54 +824,123 @@ function App() {
       </aside>
 
       <main className="workspace">
-        <header className="mobile-topbar">
-          <button
-            type="button"
-            className={isMenuOpen ? 'menu-toggle active' : 'menu-toggle'}
-            onClick={() => setIsMenuOpen((current) => !current)}
-            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={isMenuOpen}
-          >
-            <span className="menu-toggle-bars" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-            </span>
-          </button>
-          <div className="mobile-brand">
-            <span className="mobile-brand-mark">
-              <Icon name="pulse" />
-            </span>
-            <div>
-              <small>BlueCare Solutions</small>
-              <strong>{activeView}</strong>
-            </div>
-          </div>
-          <button
-            type="button"
-            className={activeView === 'Profile' ? 'profile-shortcut active' : 'profile-shortcut'}
-            onClick={() => changeView('Profile')}
-            aria-label="Open profile section"
-          >
-            <Icon name="user" />
-          </button>
-        </header>
+        <header className="workspace-topbar">
+          <div className="topbar-leading">
+            <button
+              type="button"
+              className={isMenuOpen ? 'menu-toggle mobile-only active' : 'menu-toggle mobile-only'}
+              onClick={() => setIsMenuOpen((current) => !current)}
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMenuOpen}
+            >
+              <span className="menu-toggle-bars" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </button>
 
-        <div className="desktop-toolbar">
-          <button
-            type="button"
-            className={activeView === 'Profile' ? 'profile-cta active' : 'profile-cta'}
-            onClick={() => changeView('Profile')}
-          >
-            <span className="profile-cta-icon">
+            <button type="button" className="brand-chip" onClick={() => changeView('Dashboard')}>
+              <span className="brand-chip-mark">
+                <Icon name="pulse" />
+              </span>
+              <span className="brand-chip-copy">
+                <small>BlueCare</small>
+                <strong>solutions</strong>
+              </span>
+            </button>
+          </div>
+
+          <div className="global-search-shell" ref={searchRef}>
+            <span className="global-search-icon">
+              <Icon name="search" />
+            </span>
+            <input
+              value={globalQuery}
+              onChange={(event) => {
+                setGlobalQuery(event.target.value)
+                setIsSearchOpen(true)
+              }}
+              onFocus={() => setIsSearchOpen(true)}
+              placeholder="Search patients, doctors, visits, invoices, and pages"
+              aria-label="Global search"
+            />
+
+            {isSearchOpen ? (
+              <div className="global-search-panel">
+                {globalQuery.trim() ? (
+                  globalSearchResults.length ? (
+                    <div className="global-search-results">
+                      {globalSearchResults.map((result) => (
+                        <button
+                          key={result.id}
+                          type="button"
+                          className="search-result"
+                          onClick={() => handleGlobalResultSelect(result)}
+                        >
+                          <span className="search-result-icon">
+                            <Icon name={result.icon} />
+                          </span>
+                          <span className="search-result-copy">
+                            <strong>{result.title}</strong>
+                            <small>{result.subtitle}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="search-panel-note">
+                      <strong>No matches yet</strong>
+                      <p>Try a patient name, doctor specialty, invoice number, or page name.</p>
+                    </div>
+                  )
+                ) : (
+                  <div className="search-suggestions">
+                    <small>Quick jump</small>
+                    <div className="search-suggestion-list">
+                      {searchSuggestions.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          className="search-suggestion"
+                          onClick={() =>
+                            handleGlobalResultSelect({
+                              kind: 'page',
+                              title: item.label,
+                              view: item.key,
+                            })
+                          }
+                        >
+                          <Icon name={item.icon} />
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="topbar-actions">
+            <button
+              type="button"
+              className="theme-toggle desktop-only"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+            </button>
+            <button
+              type="button"
+              className={activeView === 'Profile' ? 'profile-shortcut active' : 'profile-shortcut'}
+              onClick={() => changeView('Profile')}
+              aria-label="Open profile section"
+            >
               <Icon name="user" />
-            </span>
-            <span>
-              <small>Workspace</small>
-              <strong>Profile</strong>
-            </span>
-          </button>
-        </div>
+            </button>
+          </div>
+        </header>
 
         {activeView === 'Dashboard' ? (
           <>
@@ -694,33 +1023,49 @@ function App() {
               actionLabel="Open schedule"
               onAction={() => changeView('Appointments')}
             >
-              <DataTable
-                columns={['Patient', 'Doctor', 'Date', 'Status']}
-                rows={(dashboard.upcomingAppointments || []).map((appointment) => [
-                  appointment.patient_name,
-                  appointment.doctor_name,
-                  `${appointment.appointment_date} ${appointment.appointment_time}`,
-                  appointment.status,
-                ])}
-              />
+              {(dashboard.upcomingAppointments || []).length ? (
+                <DataTable
+                  columns={['Patient', 'Doctor', 'Date', 'Status']}
+                  rows={(dashboard.upcomingAppointments || []).map((appointment) => [
+                    appointment.patient_name,
+                    appointment.doctor_name,
+                    `${appointment.appointment_date} ${appointment.appointment_time}`,
+                    appointment.status,
+                  ])}
+                />
+              ) : (
+                <EmptyState
+                  title="No upcoming appointments"
+                  text="Fresh bookings and rescheduled visits will appear here."
+                  compact
+                />
+              )}
             </Panel>
 
             <div className="dual-grid">
               <Panel title="Recent Patient Activity" subtitle="Fresh changes across the clinic">
-                <div className="timeline-list">
-                  {(dashboard.recentPatients || []).map((patient) => (
-                    <article key={patient.id} className="timeline-item">
-                      <div className="timeline-icon">
-                        <Icon name="patients" />
-                      </div>
-                      <div>
-                        <strong>{patient.full_name}</strong>
-                        <p>{patient.activity}</p>
-                        <small>{patient.updated_at}</small>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                {(dashboard.recentPatients || []).length ? (
+                  <div className="timeline-list">
+                    {(dashboard.recentPatients || []).map((patient) => (
+                      <article key={patient.id} className="timeline-item">
+                        <div className="timeline-icon">
+                          <Icon name="patients" />
+                        </div>
+                        <div>
+                          <strong>{patient.full_name}</strong>
+                          <p>{patient.activity}</p>
+                          <small>{patient.updated_at}</small>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No recent activity"
+                    text="Patient updates will appear here after records are changed."
+                    compact
+                  />
+                )}
               </Panel>
 
               <Panel title="Quick Actions" subtitle="Jump into the most common tasks">
@@ -1352,23 +1697,7 @@ function App() {
                     <button
                       type="button"
                       className="ghost-button"
-                      onClick={() =>
-                        downloadTextFile(
-                          `prescription-${prescription.id}.txt`,
-                          [
-                            `Patient: ${prescription.patient_name}`,
-                            `Doctor: ${prescription.doctor_name}`,
-                            `Issued On: ${prescription.issued_on}`,
-                            '',
-                            ...prescription.medicines.map(
-                              (medicine) =>
-                                `${medicine.name} | ${medicine.dosage} | ${medicine.instructions}`,
-                            ),
-                            '',
-                            `Notes: ${prescription.notes || ''}`,
-                          ].join('\n'),
-                        )
-                      }
+                      onClick={() => handlePrescriptionDownload(prescription)}
                     >
                       Download summary
                     </button>
@@ -1480,20 +1809,7 @@ function App() {
                     <button
                       type="button"
                       className="ghost-button"
-                      onClick={() =>
-                        downloadTextFile(
-                          `receipt-${invoice.id}.txt`,
-                          [
-                            `Receipt for ${invoice.patient_name}`,
-                            `Invoice: ${invoice.invoice_number}`,
-                            `Consultation: ${formatCurrency(invoice.consultation_charge || 0)}`,
-                            `Additional Services: ${formatCurrency(invoice.additional_services || 0)}`,
-                            `Total: ${formatCurrency(invoice.total_amount || 0)}`,
-                            `Paid: ${formatCurrency(invoice.paid_amount || 0)}`,
-                            `Status: ${invoice.payment_status}`,
-                          ].join('\n'),
-                        )
-                      }
+                      onClick={() => handleReceiptDownload(invoice)}
                     >
                       Download receipt
                     </button>
@@ -1512,25 +1828,41 @@ function App() {
                   title="Patient Report"
                   icon="patients"
                   items={reports.patientReport || []}
-                  onExport={() => exportCsv('patient-report.csv', reports.patientReport || [])}
+                  onExport={() =>
+                    handleReportExport('patient-report.csv', reports.patientReport || [], 'Patient Report')
+                  }
                 />
                 <ReportCard
                   title="Appointment Report"
                   icon="calendar"
                   items={reports.appointmentReport || []}
-                  onExport={() => exportCsv('appointment-report.csv', reports.appointmentReport || [])}
+                  onExport={() =>
+                    handleReportExport(
+                      'appointment-report.csv',
+                      reports.appointmentReport || [],
+                      'Appointment Report',
+                    )
+                  }
                 />
                 <ReportCard
                   title="Revenue Report"
                   icon="wallet"
                   items={reports.revenueReport || []}
-                  onExport={() => exportCsv('revenue-report.csv', reports.revenueReport || [])}
+                  onExport={() =>
+                    handleReportExport('revenue-report.csv', reports.revenueReport || [], 'Revenue Report')
+                  }
                 />
                 <ReportCard
                   title="Doctor Activity"
                   icon="stethoscope"
                   items={reports.doctorActivityReport || []}
-                  onExport={() => exportCsv('doctor-activity-report.csv', reports.doctorActivityReport || [])}
+                  onExport={() =>
+                    handleReportExport(
+                      'doctor-activity-report.csv',
+                      reports.doctorActivityReport || [],
+                      'Doctor Activity Report',
+                    )
+                  }
                 />
               </div>
             </Panel>
@@ -1540,20 +1872,35 @@ function App() {
         {activeView === 'Notifications' && (
           <section className="content-grid">
             <Panel title="Notifications" subtitle="Stay ahead of visits, follow-ups, and pending balances">
-              <div className="timeline-list">
-                {notifications.map((notification) => (
-                  <article key={notification.id} className="timeline-item">
-                    <div className="timeline-icon">
-                      <Icon name={notification.type === 'billing' ? 'wallet' : notification.type === 'follow-up' ? 'clipboard' : 'bell'} />
-                    </div>
-                    <div>
-                      <strong>{notification.title}</strong>
-                      <p>{notification.message}</p>
-                      <small>{notification.type}</small>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              {notifications.length ? (
+                <div className="timeline-list">
+                  {notifications.map((notification) => (
+                    <article key={notification.id} className="timeline-item">
+                      <div className="timeline-icon">
+                        <Icon
+                          name={
+                            notification.type === 'billing'
+                              ? 'wallet'
+                              : notification.type === 'follow-up'
+                                ? 'clipboard'
+                                : 'bell'
+                          }
+                        />
+                      </div>
+                      <div>
+                        <strong>{notification.title}</strong>
+                        <p>{notification.message}</p>
+                        <small>{notification.type}</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No notifications yet"
+                  text="Upcoming visits, follow-ups, and billing reminders will appear here."
+                />
+              )}
             </Panel>
           </section>
         )}
@@ -1582,6 +1929,12 @@ function App() {
             </Panel>
           </section>
         )}
+
+        <div className="toast-stack" aria-live="polite" aria-atomic="true">
+          {toasts.map((toast) => (
+            <Toast key={toast.id} tone={toast.tone} message={toast.message} />
+          ))}
+        </div>
       </main>
     </div>
   )
@@ -1675,9 +2028,9 @@ function QuickActionCard({ icon, title, text, onClick }) {
   )
 }
 
-function EmptyState({ title, text }) {
+function EmptyState({ title, text, compact = false }) {
   return (
-    <div className="empty-state">
+    <div className={compact ? 'empty-state compact' : 'empty-state'}>
       <span className="panel-icon">
         <Icon name="grid" />
       </span>
@@ -1733,20 +2086,67 @@ function ReportCard({ title, icon, items, onExport }) {
         </span>
       </div>
       <h3>{title}</h3>
-      <ul className="plain-list report-list">
-        {items.map((item) => (
-          <li key={item.label}>
-            <div className="report-row">
-              <span>{item.label}</span>
-              <strong>{formatReportValue(title, item.value)}</strong>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {items.length ? (
+        <ul className="plain-list report-list">
+          {items.map((item) => (
+            <li key={item.label}>
+              <div className="report-row">
+                <span>{item.label}</span>
+                <strong>{formatReportValue(title, item.value)}</strong>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState compact title="No report data" text="This report will populate when records are available." />
+      )}
       <button type="button" className="ghost-button" onClick={onExport}>
         Export CSV
       </button>
     </article>
+  )
+}
+
+function Toast({ tone, message }) {
+  return (
+    <div className={`toast ${tone}`}>
+      <span className="toast-icon">
+        <Icon name={tone === 'error' ? 'alert' : 'pulse'} />
+      </span>
+      <span className="toast-message">{message}</span>
+    </div>
+  )
+}
+
+function LoadingSkeletonScreen() {
+  return (
+    <div className="loading-screen loading-shell">
+      <div className="skeleton-topbar">
+        <span className="skeleton-block icon"></span>
+        <span className="skeleton-block brand"></span>
+        <span className="skeleton-block search"></span>
+        <span className="skeleton-block icon"></span>
+      </div>
+
+      <div className="skeleton-hero">
+        <span className="skeleton-block eyebrow"></span>
+        <span className="skeleton-block title"></span>
+        <span className="skeleton-block line"></span>
+        <span className="skeleton-block line short"></span>
+      </div>
+
+      <div className="skeleton-card-grid">
+        <span className="skeleton-card"></span>
+        <span className="skeleton-card"></span>
+        <span className="skeleton-card"></span>
+        <span className="skeleton-card"></span>
+      </div>
+
+      <div className="skeleton-panel-grid">
+        <span className="skeleton-panel"></span>
+        <span className="skeleton-panel"></span>
+      </div>
+    </div>
   )
 }
 
@@ -1765,6 +2165,7 @@ function Icon({ name }) {
     grid: 'M5 5h5v5H5V5Zm9 0h5v5h-5V5ZM5 14h5v5H5v-5Zm9 0h5v5h-5v-5Z',
     patients:
       'M8 12a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm8-1a2.5 2.5 0 1 0-2.5-2.5A2.5 2.5 0 0 0 16 11Zm-8 2c-2.8 0-5 1.4-5 3v1h10v-1c0-1.6-2.2-3-5-3Zm8 .5c-1 0-1.9.2-2.7.6.8.7 1.2 1.5 1.2 2.4v.5H20v-.4c0-1.6-1.8-3.1-4-3.1Z',
+    moon: 'M19 14.8A7 7 0 1 1 9.2 5 5.8 5.8 0 0 0 19 14.8Z',
     phone:
       'M6.8 4.5h2.1l1.1 3.2-1.3 1.2a13 13 0 0 0 6.3 6.3l1.2-1.3 3.2 1.1v2.1a1.5 1.5 0 0 1-1.7 1.5A16.8 16.8 0 0 1 5.3 6.2 1.5 1.5 0 0 1 6.8 4.5Z',
     pulse: 'M3 13h4l2.2-5.2L13 16l2.4-5H21',
@@ -1772,6 +2173,7 @@ function Icon({ name }) {
     search: 'm19 19-3.5-3.5M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13Z',
     stethoscope:
       'M8 4v5a4 4 0 1 0 8 0V4M8 7H6m10 0h2M12 13v3a3 3 0 1 0 6 0v-1.5a1.5 1.5 0 1 0-1.5-1.5',
+    sun: 'M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
     user: 'M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.2 0-6 1.6-6 3.6V19h12v-1.4c0-2-2.8-3.6-6-3.6Z',
     wallet:
       'M4 7.5A2.5 2.5 0 0 1 6.5 5h10A1.5 1.5 0 0 1 18 6.5V7h1a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a.5.5 0 0 1 .5-.5H18M16 12h3',
