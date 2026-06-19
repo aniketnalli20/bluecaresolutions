@@ -607,6 +607,8 @@
 }
 
 .view-transition {
+  display: grid;
+  gap: 20px;
   animation: view-enter 0.34s ease;
 }
 
@@ -650,7 +652,7 @@
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.16);
   display: grid;
-  gap: 4px;
+  gap: 8px;
   backdrop-filter: blur(12px);
 }
 
@@ -667,15 +669,7 @@
 .top-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.hero-banner + .top-strip {
-  margin-top: 6px;
-}
-
-.top-strip + .content-grid {
-  margin-top: 18px;
+  gap: 18px;
 }
 
 .top-strip.compact {
@@ -689,7 +683,7 @@
 .appointment-list,
 .quick-grid {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .dual-grid {
@@ -717,7 +711,7 @@
 .panel {
   padding: 22px;
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .panel-header {
@@ -824,7 +818,7 @@
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 16px;
 }
 
 .profile-development-card {
@@ -907,8 +901,8 @@
 
 .list-card {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 10px;
+  padding: 18px 16px;
   border-radius: 20px;
   text-align: left;
   background: var(--card-background-soft);
@@ -1071,7 +1065,7 @@
 .doctor-heading {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .doctor-heading h3 {
@@ -1090,7 +1084,7 @@
 
 .doctor-stat {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding: 14px 16px;
   border-radius: 18px;
   background: var(--card-background-soft);
@@ -1145,7 +1139,7 @@
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .full-span {
@@ -1277,11 +1271,14 @@ button:hover {
 
 .table-wrap {
   overflow-x: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 119, 182, 0.1);
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  overflow: hidden;
 }
 
 th,
