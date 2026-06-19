@@ -736,6 +736,9 @@
 .stat-card {
   position: relative;
   overflow: hidden;
+  display: grid;
+  gap: 16px;
+  padding: 20px 18px;
 }
 
 .stat-card::after {
@@ -762,13 +765,16 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 14px;
+  min-height: 42px;
 }
 
 .stat-card-top p {
+  margin: 0;
   font-size: 0.96rem;
   font-weight: 700;
   color: var(--ink);
+  line-height: 1.35;
 }
 
 .stat-card p,
@@ -953,13 +959,13 @@
 .patient-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .summary-tile {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 16px;
+  padding: 20px 18px;
   border-radius: 18px;
   background: var(--card-background);
   border: 1px solid var(--line);
@@ -968,7 +974,8 @@
 .summary-tile-top {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  min-height: 42px;
 }
 
 .summary-tile small {
@@ -979,7 +986,7 @@
 .summary-tile strong {
   color: var(--ink);
   font-size: 0.98rem;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .summary-tile-icon,
