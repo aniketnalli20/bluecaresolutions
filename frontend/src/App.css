@@ -932,8 +932,8 @@
   gap: 8px;
   padding: 16px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(202, 240, 248, 0.54));
-  border: 1px solid rgba(0, 119, 182, 0.12);
+  background: var(--card-background);
+  border: 1px solid var(--line);
 }
 
 .summary-tile small {
@@ -941,7 +941,7 @@
 }
 
 .summary-tile strong {
-  color: var(--deep-twilight);
+  color: var(--ink);
   font-size: 0.98rem;
   line-height: 1.45;
 }
@@ -976,8 +976,8 @@
   gap: 16px;
   padding: 20px;
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(202, 240, 248, 0.42));
-  border: 1px solid rgba(0, 119, 182, 0.14);
+  background: var(--card-background);
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-md);
 }
 
@@ -1042,8 +1042,8 @@
   gap: 4px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(0, 119, 182, 0.12);
+  background: var(--card-background-soft);
+  border: 1px solid var(--line);
 }
 
 .doctor-stat small {
@@ -1051,7 +1051,7 @@
 }
 
 .doctor-stat strong {
-  color: var(--deep-twilight);
+  color: var(--ink);
   font-size: 1rem;
 }
 
@@ -1061,8 +1061,8 @@
   gap: 12px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(0, 119, 182, 0.12);
+  background: var(--card-background-soft);
+  border: 1px solid var(--line);
 }
 
 .doctor-highlight small {

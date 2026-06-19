@@ -1365,40 +1365,47 @@ function App() {
             </Panel>
 
             <Panel title="Daily Schedule" subtitle="Keep each visit moving from arrival to completion">
-              <div className="appointment-list">
-                {appointments.map((appointment) => (
-                  <article key={appointment.id} className="appointment-card">
-                    <div className="appointment-main">
-                      <div className="appointment-icon">
-                        <Icon name="calendar" />
+              {appointments.length ? (
+                <div className="appointment-list">
+                  {appointments.map((appointment) => (
+                    <article key={appointment.id} className="appointment-card">
+                      <div className="appointment-main">
+                        <div className="appointment-icon">
+                          <Icon name="calendar" />
+                        </div>
+                        <div>
+                          <strong>{appointment.patient_name}</strong>
+                          <p>
+                            {appointment.doctor_name} • {appointment.appointment_date} •{' '}
+                            {appointment.appointment_time}
+                          </p>
+                          <small>{appointment.reason}</small>
+                        </div>
                       </div>
-                      <div>
-                        <strong>{appointment.patient_name}</strong>
-                        <p>
-                          {appointment.doctor_name} • {appointment.appointment_date} •{' '}
-                          {appointment.appointment_time}
-                        </p>
-                        <small>{appointment.reason}</small>
+                      <div className="status-stack">
+                        <span className={`status-badge ${appointment.status.toLowerCase().replaceAll(' ', '-')}`}>
+                          {appointment.status}
+                        </span>
+                        <select
+                          value={appointment.status}
+                          onChange={(event) =>
+                            handleAppointmentStatusChange(appointment.id, event.target.value)
+                          }
+                        >
+                          {appointmentStatuses.map((status) => (
+                            <option key={status}>{status}</option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                    <div className="status-stack">
-                      <span className={`status-badge ${appointment.status.toLowerCase().replaceAll(' ', '-')}`}>
-                        {appointment.status}
-                      </span>
-                      <select
-                        value={appointment.status}
-                        onChange={(event) =>
-                          handleAppointmentStatusChange(appointment.id, event.target.value)
-                        }
-                      >
-                        {appointmentStatuses.map((status) => (
-                          <option key={status}>{status}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No appointments scheduled"
+                  text="Newly booked visits will appear here once the day plan is prepared."
+                />
+              )}
             </Panel>
           </section>
         )}
@@ -1589,25 +1596,32 @@ function App() {
             </Panel>
 
             <Panel title="Previous Visits" subtitle="A clean view of recent consultation history">
-              <div className="timeline-list">
-                {consultations.map((consultation) => (
-                  <article key={consultation.id} className="timeline-item">
-                    <div className="timeline-icon">
-                      <Icon name="clipboard" />
-                    </div>
-                    <div>
-                      <strong>
-                        {consultation.patient_name} • {consultation.doctor_name}
-                      </strong>
-                      <p>{consultation.diagnosis}</p>
-                      <small>
-                        {consultation.consultation_date} •{' '}
-                        {consultation.supporting_document || 'No file attached'}
-                      </small>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              {consultations.length ? (
+                <div className="timeline-list">
+                  {consultations.map((consultation) => (
+                    <article key={consultation.id} className="timeline-item">
+                      <div className="timeline-icon">
+                        <Icon name="clipboard" />
+                      </div>
+                      <div>
+                        <strong>
+                          {consultation.patient_name} • {consultation.doctor_name}
+                        </strong>
+                        <p>{consultation.diagnosis}</p>
+                        <small>
+                          {consultation.consultation_date} •{' '}
+                          {consultation.supporting_document || 'No file attached'}
+                        </small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No consultation history"
+                  text="Saved consultation notes and visit records will appear here."
+                />
+              )}
             </Panel>
           </section>
         )}
@@ -1676,34 +1690,41 @@ function App() {
             </Panel>
 
             <Panel title="Ready To Share" subtitle="Download printable prescription summaries">
-              <div className="card-grid">
-                {prescriptions.map((prescription) => (
-                  <article key={prescription.id} className="info-panel emphasis">
-                    <div className="panel-icon-row">
-                      <span className="panel-icon">
-                        <Icon name="capsule" />
-                      </span>
-                      <span className="soft-pill">{prescription.issued_on}</span>
-                    </div>
-                    <h3>{prescription.patient_name}</h3>
-                    <p>{prescription.doctor_name}</p>
-                    <ul className="plain-list">
-                      {prescription.medicines.map((medicine, index) => (
-                        <li key={`${prescription.id}-${index}`}>
-                          {medicine.name} • {medicine.dosage} • {medicine.instructions}
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={() => handlePrescriptionDownload(prescription)}
-                    >
-                      Download summary
-                    </button>
-                  </article>
-                ))}
-              </div>
+              {prescriptions.length ? (
+                <div className="card-grid">
+                  {prescriptions.map((prescription) => (
+                    <article key={prescription.id} className="info-panel emphasis">
+                      <div className="panel-icon-row">
+                        <span className="panel-icon">
+                          <Icon name="capsule" />
+                        </span>
+                        <span className="soft-pill">{prescription.issued_on}</span>
+                      </div>
+                      <h3>{prescription.patient_name}</h3>
+                      <p>{prescription.doctor_name}</p>
+                      <ul className="plain-list">
+                        {prescription.medicines.map((medicine, index) => (
+                          <li key={`${prescription.id}-${index}`}>
+                            {medicine.name} • {medicine.dosage} • {medicine.instructions}
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => handlePrescriptionDownload(prescription)}
+                      >
+                        Download summary
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No prescriptions ready"
+                  text="Prepared prescriptions will appear here for quick download."
+                />
+              )}
             </Panel>
           </section>
         )}
@@ -1788,34 +1809,41 @@ function App() {
                 />
               </div>
 
-              <div className="appointment-list">
-                {invoices.map((invoice) => (
-                  <article key={invoice.id} className="appointment-card">
-                    <div className="appointment-main">
-                      <div className="appointment-icon">
-                        <Icon name="wallet" />
+              {invoices.length ? (
+                <div className="appointment-list">
+                  {invoices.map((invoice) => (
+                    <article key={invoice.id} className="appointment-card">
+                      <div className="appointment-main">
+                        <div className="appointment-icon">
+                          <Icon name="wallet" />
+                        </div>
+                        <div>
+                          <strong>
+                            {invoice.invoice_number} • {invoice.patient_name}
+                          </strong>
+                          <p>
+                            Total {formatCurrency(invoice.total_amount)} • Paid{' '}
+                            {formatCurrency(invoice.paid_amount)}
+                          </p>
+                          <small>{invoice.payment_status}</small>
+                        </div>
                       </div>
-                      <div>
-                        <strong>
-                          {invoice.invoice_number} • {invoice.patient_name}
-                        </strong>
-                        <p>
-                          Total {formatCurrency(invoice.total_amount)} • Paid{' '}
-                          {formatCurrency(invoice.paid_amount)}
-                        </p>
-                        <small>{invoice.payment_status}</small>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={() => handleReceiptDownload(invoice)}
-                    >
-                      Download receipt
-                    </button>
-                  </article>
-                ))}
-              </div>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => handleReceiptDownload(invoice)}
+                      >
+                        Download receipt
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No invoices yet"
+                  text="Saved invoices and receipts will appear here after billing is created."
+                />
+              )}
             </Panel>
           </section>
         )}
