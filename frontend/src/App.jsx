@@ -5,7 +5,6 @@ import {
   resetWorkspaceData,
   updateRecord,
 } from './services/emrStore'
-import roadblockImage from './assets/roadblock.png'
 import './App.css'
 
 const navItems = [
@@ -28,6 +27,102 @@ const themeStorageKey = 'bluecare-theme'
 const skeletonDelayMs = 320
 const toastDurationMs = 3200
 const compactLayoutQuery = '(max-width: 1240px)'
+const authStorageKey = 'bluecare-auth'
+const sessionStorageKey = 'bluecare-session'
+const profileStorageKey = 'bluecare-profile'
+
+const defaultAuthData = {
+  username: 'dr.sarah',
+  password: 'BlueCare@123',
+}
+
+const defaultUserProfile = {
+  memberSince: 'January 2025',
+  bio:
+    'Dedicated healthcare professional committed to delivering quality patient care and supporting efficient healthcare operations through modern digital solutions.',
+  personal: {
+    fullName: 'Dr. Sarah Johnson',
+    employeeId: 'BCS-EMP-014',
+    role: 'Doctor',
+    department: 'Cardiology Department',
+    gender: 'Female',
+    dateOfBirth: '1988-09-12',
+    bloodGroup: 'A+',
+    contactNumber: '+91 98765 43210',
+    emailAddress: 'sarah.johnson@bluecare.health',
+    residentialAddress: '45 Lakeview Residency, Bengaluru, Karnataka',
+    emergencyContact: 'James Johnson • +91 99887 77665',
+  },
+  professional: {
+    designation: 'Senior Cardiologist',
+    specialization: 'Cardiology',
+    licenseNumber: 'KMC-2016-4431',
+    experience: '11 years',
+    joiningDate: '2025-01-15',
+    reportingManager: 'Dr. Amelia Ross',
+    facility: 'Main Healthcare Center',
+  },
+  account: {
+    username: 'dr.sarah',
+    userRole: 'Administrator',
+    accountStatus: 'Active',
+    lastLogin: 'Today, 09:15 AM',
+    twoFactorStatus: 'Enabled',
+  },
+  schedule: {
+    workingHours: '09:00 AM - 05:30 PM',
+    shiftInformation: 'Day shift',
+    weeklySchedule: 'Monday to Friday',
+    leaveBalance: '12 days',
+    upcomingLeaves: '24 Jun 2026 • 25 Jun 2026',
+  },
+  performance: {
+    patientsAttended: 124,
+    appointmentsManaged: 186,
+    tasksCompleted: 42,
+    attendanceSummary: '96% attendance this month',
+    monthlyActivity: 'Strong month with consistent consult flow and timely documentation.',
+  },
+  preferences: {
+    language: 'English (India)',
+    notifications: 'Email and in-app updates',
+    themeSetting: 'Dark mode',
+    timeZone: 'Asia/Kolkata',
+  },
+  security: {
+    loginHistory: [
+      { label: 'Today, 09:15 AM', detail: 'Main Healthcare Center • Current browser' },
+      { label: 'Yesterday, 08:20 PM', detail: 'Doctor station • Evening review' },
+      { label: '18 Jun 2026, 07:40 AM', detail: 'Main Healthcare Center • Morning rounds' },
+    ],
+    activeSessions: [
+      { label: 'Current workspace', detail: 'Windows desktop • Active now' },
+      { label: 'Mobile review session', detail: 'Android device • Synced last night' },
+    ],
+    alerts: [
+      'Password was updated on 01 Jun 2026.',
+      'No unusual sign-in activity detected in the last 30 days.',
+    ],
+  },
+  documents: [
+    { name: 'Identification Proof', status: 'Verified', updatedOn: '04 Jun 2026' },
+    { name: 'Professional Certificates', status: '2 files available', updatedOn: '11 Jun 2026' },
+    { name: 'Medical License Documents', status: 'Verified', updatedOn: '08 Jun 2026' },
+    { name: 'Employment Documents', status: 'Latest contract uploaded', updatedOn: '02 Jun 2026' },
+    { name: 'Other Attachments', status: '3 supporting files', updatedOn: '29 May 2026' },
+  ],
+}
+
+const roleOptions = ['Doctor', 'Nurse', 'Receptionist', 'Administrator', 'Lab Technician']
+
+function readStoredJson(key, fallbackValue) {
+  try {
+    const storedValue = localStorage.getItem(key)
+    return storedValue ? JSON.parse(storedValue) : fallbackValue
+  } catch {
+    return fallbackValue
+  }
+}
 
 const initialPatientForm = {
   full_name: '',
@@ -97,6 +192,9 @@ function App() {
   const [isCompactLayout, setIsCompactLayout] = useState(() =>
     window.matchMedia(compactLayoutQuery).matches,
   )
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => localStorage.getItem(sessionStorageKey) === 'true',
+  )
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem(themeStorageKey)
     if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -108,6 +206,26 @@ function App() {
   const [workspace, setWorkspace] = useState(null)
   const [isHydrating, setIsHydrating] = useState(true)
   const [statusMessage, setStatusMessage] = useState('Preparing your care workspace...')
+  const [authStatusMessage, setAuthStatusMessage] = useState('Sign in to continue to your workspace.')
+  const [authMode, setAuthMode] = useState('login')
+  const [authData, setAuthData] = useState(() => readStoredJson(authStorageKey, defaultAuthData))
+  const [profileData, setProfileData] = useState(() =>
+    readStoredJson(profileStorageKey, defaultUserProfile),
+  )
+  const [loginForm, setLoginForm] = useState(() => ({
+    username: readStoredJson(authStorageKey, defaultAuthData).username,
+    password: '',
+  }))
+  const [forgotForm, setForgotForm] = useState({
+    username: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
   const [patientSearch, setPatientSearch] = useState('')
   const [patientFilter, setPatientFilter] = useState('All')
   const [globalQuery, setGlobalQuery] = useState('')
@@ -155,6 +273,18 @@ function App() {
     document.documentElement.dataset.theme = theme
     localStorage.setItem(themeStorageKey, theme)
   }, [theme])
+
+  useEffect(() => {
+    localStorage.setItem(sessionStorageKey, isAuthenticated ? 'true' : 'false')
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    localStorage.setItem(authStorageKey, JSON.stringify(authData))
+  }, [authData])
+
+  useEffect(() => {
+    localStorage.setItem(profileStorageKey, JSON.stringify(profileData))
+  }, [profileData])
 
   useEffect(() => {
     let isCancelled = false
@@ -533,15 +663,279 @@ function App() {
     ? Math.min(activeSearchCursor, visibleSearchItems.length - 1)
     : -1
 
+  const profileOverviewCards = useMemo(
+    () => [
+      {
+        icon: 'patients',
+        label: 'Patients Attended',
+        value: Number(profileData.performance.patientsAttended || 0).toLocaleString('en-IN'),
+      },
+      {
+        icon: 'calendar',
+        label: 'Appointments Managed',
+        value: Number(profileData.performance.appointmentsManaged || 0).toLocaleString('en-IN'),
+      },
+      {
+        icon: 'chart',
+        label: 'Tasks Completed',
+        value: Number(profileData.performance.tasksCompleted || 0).toLocaleString('en-IN'),
+      },
+      {
+        icon: 'pulse',
+        label: 'Attendance Summary',
+        value: profileData.performance.attendanceSummary,
+      },
+    ],
+    [profileData.performance],
+  )
+
+  const profileQuickActions = useMemo(
+    () => [
+      { label: 'Edit Profile', icon: 'user', target: 'profile-information' },
+      { label: 'Update Contact Information', icon: 'phone', target: 'profile-information' },
+      { label: 'Change Password', icon: 'lock', target: 'profile-security' },
+      { label: 'View Schedule', icon: 'clock', target: 'profile-schedule' },
+      { label: 'Download Documents', icon: 'file', target: 'profile-documents' },
+      { label: 'Manage Notifications', icon: 'bell', target: 'profile-preferences' },
+    ],
+    [],
+  )
+
   const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+    setTheme((currentTheme) => {
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
+      setProfileData((currentProfile) => ({
+        ...currentProfile,
+        preferences: {
+          ...currentProfile.preferences,
+          themeSetting: nextTheme === 'dark' ? 'Dark mode' : 'Light mode',
+        },
+      }))
+      return nextTheme
+    })
   }, [])
+
+  const handleProfileFieldChange = useCallback((section, field, value) => {
+    setProfileData((current) => ({
+      ...current,
+      [section]: {
+        ...current[section],
+        [field]: value,
+      },
+    }))
+  }, [])
+
+  const handleProfileInputChange = useCallback(
+    (section, field) => (event) => handleProfileFieldChange(section, field, event.target.value),
+    [handleProfileFieldChange],
+  )
 
   const changeView = useCallback((view) => {
     setActiveView(view)
     setIsMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
+
+  const handleProfileSave = useCallback(
+    (message = 'Profile details updated.') => {
+      setStatusMessage(message)
+      pushToast(message, 'success')
+      playMajorActionSound()
+    },
+    [playMajorActionSound, pushToast],
+  )
+
+  const handleProfileJump = useCallback((sectionId, label) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setStatusMessage(`${label} is ready to review.`)
+  }, [])
+
+  const handleDocumentDownload = useCallback(
+    (documentItem) => {
+      downloadTextFile(
+        `${documentItem.name.toLowerCase().replaceAll(' ', '-')}.txt`,
+        [
+          `Document: ${documentItem.name}`,
+          `Status: ${documentItem.status}`,
+          `Last Updated: ${documentItem.updatedOn}`,
+          `Employee: ${profileData.personal.fullName}`,
+          `Department: ${profileData.personal.department}`,
+        ].join('\n'),
+      )
+      pushToast(`${documentItem.name} summary downloaded.`, 'success')
+    },
+    [profileData.personal.department, profileData.personal.fullName, pushToast],
+  )
+
+  const handleToggleTwoFactor = useCallback(() => {
+    const nextStatus =
+      profileData.account.twoFactorStatus === 'Enabled' ? 'Disabled' : 'Enabled'
+    setProfileData((current) => ({
+      ...current,
+      account: {
+        ...current.account,
+        twoFactorStatus: nextStatus,
+      },
+      security: {
+        ...current.security,
+        alerts: [
+          `Two-factor authentication was ${nextStatus.toLowerCase()} on ${formatDateTimeLabel(new Date())}.`,
+          ...current.security.alerts,
+        ].slice(0, 4),
+      },
+    }))
+    handleProfileSave(`Two-factor authentication ${nextStatus.toLowerCase()}.`)
+  }, [handleProfileSave, profileData.account.twoFactorStatus])
+
+  const handleLoginSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+
+      if (
+        loginForm.username.trim().toLowerCase() !== authData.username.toLowerCase() ||
+        loginForm.password !== authData.password
+      ) {
+        setAuthStatusMessage('Incorrect username or password. Please try again.')
+        return
+      }
+
+      const loginStamp = formatDateTimeLabel(new Date())
+      setProfileData((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          lastLogin: loginStamp,
+        },
+        security: {
+          ...current.security,
+          loginHistory: [
+            { label: loginStamp, detail: 'Main Healthcare Center • Current browser' },
+            ...current.security.loginHistory,
+          ].slice(0, 5),
+          activeSessions: [
+            { label: 'Current workspace', detail: `${loginStamp} • Active now` },
+            ...current.security.activeSessions.filter((session) => session.label !== 'Current workspace'),
+          ].slice(0, 3),
+        },
+      }))
+      setIsAuthenticated(true)
+      setAuthMode('login')
+      setLoginForm((current) => ({ ...current, password: '' }))
+      setAuthStatusMessage('Welcome back. Your workspace is ready.')
+      setStatusMessage('Signed in successfully.')
+      pushToast('Signed in successfully.', 'success')
+      playMajorActionSound()
+      changeView('Dashboard')
+    },
+    [authData.password, authData.username, changeView, loginForm.password, loginForm.username, playMajorActionSound, pushToast],
+  )
+
+  const handleForgotPasswordSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+
+      if (forgotForm.username.trim().toLowerCase() !== authData.username.toLowerCase()) {
+        setAuthStatusMessage('We could not match that username to this profile.')
+        return
+      }
+
+      if (!forgotForm.newPassword || forgotForm.newPassword.length < 8) {
+        setAuthStatusMessage('Use a password with at least 8 characters.')
+        return
+      }
+
+      if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+        setAuthStatusMessage('The new password and confirmation do not match.')
+        return
+      }
+
+      setAuthData((current) => ({
+        ...current,
+        password: forgotForm.newPassword,
+      }))
+      setProfileData((current) => ({
+        ...current,
+        security: {
+          ...current.security,
+          alerts: [
+            `Password was reset from the recovery flow on ${formatDateTimeLabel(new Date())}.`,
+            ...current.security.alerts,
+          ].slice(0, 4),
+        },
+      }))
+      setLoginForm({
+        username: forgotForm.username.trim(),
+        password: '',
+      })
+      setForgotForm({
+        username: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+      setAuthMode('login')
+      setAuthStatusMessage('Password updated. Sign in with your new password.')
+    },
+    [authData.username, forgotForm.confirmPassword, forgotForm.newPassword, forgotForm.username],
+  )
+
+  const handlePasswordChange = useCallback(
+    (event) => {
+      event.preventDefault()
+
+      if (passwordForm.currentPassword !== authData.password) {
+        pushToast('Current password is incorrect.', 'error')
+        return
+      }
+
+      if (!passwordForm.newPassword || passwordForm.newPassword.length < 8) {
+        pushToast('Use a new password with at least 8 characters.', 'error')
+        return
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        pushToast('New password and confirmation do not match.', 'error')
+        return
+      }
+
+      setAuthData((current) => ({
+        ...current,
+        password: passwordForm.newPassword,
+      }))
+      setProfileData((current) => ({
+        ...current,
+        security: {
+          ...current.security,
+          alerts: [
+            `Password was changed on ${formatDateTimeLabel(new Date())}.`,
+            ...current.security.alerts,
+          ].slice(0, 4),
+        },
+      }))
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+      handleProfileSave('Password updated successfully.')
+    },
+    [authData.password, handleProfileSave, passwordForm.confirmPassword, passwordForm.currentPassword, passwordForm.newPassword, pushToast],
+  )
+
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false)
+    setIsMenuOpen(false)
+    setActiveView('Dashboard')
+    setGlobalQuery('')
+    setIsSearchOpen(false)
+    setActiveSearchCursor(0)
+    setLoginForm((current) => ({
+      ...current,
+      username: authData.username,
+      password: '',
+    }))
+    setAuthMode('login')
+    setAuthStatusMessage('You have been signed out. Sign in again to continue.')
+  }, [authData.username])
 
   const handleGlobalResultSelect = useCallback(
     (result) => {
@@ -851,6 +1245,182 @@ function App() {
     return <LoadingSkeletonScreen />
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className="auth-shell">
+        <div className="disclaimer-marquee" role="note" aria-label="Demonstration disclaimer">
+          <div className="disclaimer-track">
+            <span>
+              WARNING DISCLAIMER: This software is for demonstration, testing, and development
+              purposes only. It is NOT intended for live clinical, hospital-floor, patient-care, or
+              production use. All records, patient information, reports, schedules, and datasets
+              displayed within this application are artificial, fictional, and generated solely for
+              testing purposes.
+            </span>
+            <span aria-hidden="true">
+              WARNING DISCLAIMER: This software is for demonstration, testing, and development
+              purposes only. It is NOT intended for live clinical, hospital-floor, patient-care, or
+              production use. All records, patient information, reports, schedules, and datasets
+              displayed within this application are artificial, fictional, and generated solely for
+              testing purposes.
+            </span>
+          </div>
+        </div>
+
+        <section className="auth-layout">
+          <article className="auth-preview-card">
+            <div className="auth-preview-header">
+              <img src="/android-chrome-192x192.png" alt="BlueCare icon" className="auth-brand-image" />
+              <div>
+                <p className="eyebrow">BlueCare Access</p>
+                <h1>Secure staff workspace sign in</h1>
+              </div>
+            </div>
+            <p className="auth-preview-copy">
+              A sharper, calmer login flow for staff accounts, schedules, profile management,
+              document access, and secure password updates.
+            </p>
+
+            <div className="auth-preview-grid">
+              <article className="auth-preview-tile">
+                <small>Profile Preview</small>
+                <strong>{profileData.personal.fullName}</strong>
+                <span>{profileData.professional.designation}</span>
+              </article>
+              <article className="auth-preview-tile">
+                <small>Department</small>
+                <strong>{profileData.personal.department}</strong>
+                <span>{profileData.professional.facility}</span>
+              </article>
+              <article className="auth-preview-tile">
+                <small>Account Status</small>
+                <strong>{profileData.account.accountStatus}</strong>
+                <span>2FA {profileData.account.twoFactorStatus}</span>
+              </article>
+            </div>
+
+            <div className="auth-preview-meta">
+              <div className="auth-inline-item">
+                <span className="summary-tile-icon">
+                  <Icon name="email" />
+                </span>
+                <span>{profileData.personal.emailAddress}</span>
+              </div>
+              <div className="auth-inline-item">
+                <span className="summary-tile-icon">
+                  <Icon name="phone" />
+                </span>
+                <span>{profileData.personal.contactNumber}</span>
+              </div>
+              <div className="auth-inline-item">
+                <span className="summary-tile-icon">
+                  <Icon name="building" />
+                </span>
+                <span>{profileData.professional.facility}</span>
+              </div>
+            </div>
+          </article>
+
+          <article className="auth-card">
+            <div className="auth-card-top">
+              <div>
+                <p className="eyebrow">{authMode === 'login' ? 'Sign In' : 'Password Recovery'}</p>
+                <h2>{authMode === 'login' ? 'Welcome back to BlueCare' : 'Reset your password'}</h2>
+                <p>
+                  {authMode === 'login'
+                    ? 'Use your username and password to open the healthcare workspace.'
+                    : 'Confirm your username and choose a new password to restore access.'}
+                </p>
+              </div>
+              <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label="Switch theme">
+                <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+              </button>
+            </div>
+
+            <div className="auth-credentials-card">
+              <small>Starter credentials</small>
+              <strong>Username: {authData.username}</strong>
+              <span>Password: {authData.password}</span>
+            </div>
+
+            <form className="auth-form" onSubmit={authMode === 'login' ? handleLoginSubmit : handleForgotPasswordSubmit}>
+              {authMode === 'login' ? (
+                <>
+                  <input
+                    value={loginForm.username}
+                    onChange={(event) => setLoginForm({ ...loginForm, username: event.target.value })}
+                    placeholder="Username"
+                    autoComplete="username"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={loginForm.password}
+                    onChange={(event) => setLoginForm({ ...loginForm, password: event.target.value })}
+                    placeholder="Password"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button type="submit" className="primary-button auth-submit">
+                    Sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    value={forgotForm.username}
+                    onChange={(event) => setForgotForm({ ...forgotForm, username: event.target.value })}
+                    placeholder="Username"
+                    autoComplete="username"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={forgotForm.newPassword}
+                    onChange={(event) => setForgotForm({ ...forgotForm, newPassword: event.target.value })}
+                    placeholder="New password"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={forgotForm.confirmPassword}
+                    onChange={(event) => setForgotForm({ ...forgotForm, confirmPassword: event.target.value })}
+                    placeholder="Confirm new password"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button type="submit" className="primary-button auth-submit">
+                    Update password
+                  </button>
+                </>
+              )}
+            </form>
+
+            <div className="auth-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  setAuthMode(authMode === 'login' ? 'forgot' : 'login')
+                  setAuthStatusMessage(
+                    authMode === 'login'
+                      ? 'Use your username and choose a fresh password.'
+                      : 'Sign in to continue to your workspace.',
+                  )
+                }}
+              >
+                {authMode === 'login' ? 'Forgot password?' : 'Back to sign in'}
+              </button>
+            </div>
+
+            <p className="auth-status-message">{authStatusMessage}</p>
+          </article>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <div className="disclaimer-marquee" role="note" aria-label="Demonstration disclaimer">
@@ -914,6 +1484,9 @@ function App() {
           </button>
           <button type="button" className="ghost-button light" onClick={handleResetWorkspace}>
             Refresh Starter Records
+          </button>
+          <button type="button" className="ghost-button light" onClick={handleLogout}>
+            Sign out
           </button>
         </div>
       </aside>
@@ -2059,26 +2632,477 @@ function App() {
           <section className="content-grid">
             <Panel
               title="User Profile"
-              subtitle="Your personal profile tools will appear here as this section continues to grow."
+              subtitle="Manage your healthcare profile, credentials, schedule, and security settings from one sharper workspace."
             >
-              <div className="profile-development-card">
-                <div className="profile-development-copy">
-                  <span className="soft-pill">Under development stage</span>
-                  <h3>Profile tools are currently being prepared.</h3>
-                  <p>
-                    Account details, preferences, personal activity, and quick settings will be
-                    added here in a future update.
-                  </p>
-                  <button type="button" className="ghost-button profile-theme-toggle" onClick={toggleTheme}>
-                    Turn on {theme === 'dark' ? 'light' : 'dark'} mode from profile
+              <div className="profile-hero-card">
+                <div className="profile-hero-main">
+                  <img src="/android-chrome-192x192.png" alt="BlueCare icon" className="profile-hero-avatar" />
+                  <div className="profile-hero-copy">
+                    <h3>{profileData.personal.fullName}</h3>
+                    <p>{profileData.professional.designation}</p>
+                    <div className="profile-inline-pills">
+                      <span className="meta-pill">{profileData.personal.department}</span>
+                      <span className="meta-pill">{profileData.professional.facility}</span>
+                      <span className="meta-pill">Member Since: {profileData.memberSince}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-hero-meta">
+                  <div className="auth-inline-item">
+                    <span className="summary-tile-icon">
+                      <Icon name="email" />
+                    </span>
+                    <span>{profileData.personal.emailAddress}</span>
+                  </div>
+                  <div className="auth-inline-item">
+                    <span className="summary-tile-icon">
+                      <Icon name="phone" />
+                    </span>
+                    <span>{profileData.personal.contactNumber}</span>
+                  </div>
+                  <div className="auth-inline-item">
+                    <span className="summary-tile-icon">
+                      <Icon name="building" />
+                    </span>
+                    <span>{profileData.professional.facility}</span>
+                  </div>
+                  <div className="auth-inline-item">
+                    <span className="summary-tile-icon">
+                      <Icon name="clock" />
+                    </span>
+                    <span>Last Login: {profileData.account.lastLogin}</span>
+                  </div>
+                </div>
+
+                <div className="profile-status-row">
+                  <span className="soft-pill">Status: {profileData.account.accountStatus}</span>
+                  <span className="soft-pill">Role: {profileData.personal.role}</span>
+                  <span className="soft-pill">Username: {profileData.account.username}</span>
+                </div>
+
+                <p className="profile-bio-copy">{profileData.bio}</p>
+              </div>
+            </Panel>
+
+            <div className="profile-overview-grid">
+              {profileOverviewCards.map((card) => (
+                <SummaryTile key={card.label} icon={card.icon} label={card.label} value={card.value} />
+              ))}
+            </div>
+
+            <Panel title="Quick Actions" subtitle="Move quickly through the most common profile tasks.">
+              <div className="profile-actions-grid">
+                {profileQuickActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="profile-action-card"
+                    onClick={() => handleProfileJump(action.target, action.label)}
+                  >
+                    <span className="summary-tile-icon">
+                      <Icon name={action.icon} />
+                    </span>
+                    <strong>{action.label}</strong>
+                  </button>
+                ))}
+              </div>
+            </Panel>
+
+            <div id="profile-information">
+              <Panel title="Personal Information" subtitle="Keep identity, contact, and care profile details current.">
+                <form
+                  className="form-grid"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    handleProfileSave('Personal information updated.')
+                  }}
+                >
+                  <input
+                    value={profileData.personal.fullName}
+                    onChange={handleProfileInputChange('personal', 'fullName')}
+                    placeholder="Full Name"
+                    required
+                  />
+                  <input
+                    value={profileData.personal.employeeId}
+                    onChange={handleProfileInputChange('personal', 'employeeId')}
+                    placeholder="Employee ID"
+                    required
+                  />
+                  <select
+                    value={profileData.personal.role}
+                    onChange={handleProfileInputChange('personal', 'role')}
+                  >
+                    {roleOptions.map((role) => (
+                      <option key={role}>{role}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={profileData.personal.department}
+                    onChange={handleProfileInputChange('personal', 'department')}
+                    placeholder="Department"
+                    required
+                  />
+                  <select
+                    value={profileData.personal.gender}
+                    onChange={handleProfileInputChange('personal', 'gender')}
+                  >
+                    <option>Female</option>
+                    <option>Male</option>
+                    <option>Other</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={profileData.personal.dateOfBirth}
+                    onChange={handleProfileInputChange('personal', 'dateOfBirth')}
+                  />
+                  <input
+                    value={profileData.personal.bloodGroup}
+                    onChange={handleProfileInputChange('personal', 'bloodGroup')}
+                    placeholder="Blood Group"
+                  />
+                  <input
+                    value={profileData.personal.contactNumber}
+                    onChange={handleProfileInputChange('personal', 'contactNumber')}
+                    placeholder="Contact Number"
+                    required
+                  />
+                  <input
+                    value={profileData.personal.emailAddress}
+                    onChange={handleProfileInputChange('personal', 'emailAddress')}
+                    placeholder="Email Address"
+                    required
+                  />
+                  <input
+                    value={profileData.personal.emergencyContact}
+                    onChange={handleProfileInputChange('personal', 'emergencyContact')}
+                    placeholder="Emergency Contact"
+                  />
+                  <textarea
+                    className="full-span"
+                    value={profileData.personal.residentialAddress}
+                    onChange={handleProfileInputChange('personal', 'residentialAddress')}
+                    placeholder="Residential Address"
+                  />
+                  <button type="submit" className="primary-button">
+                    Save personal information
+                  </button>
+                </form>
+              </Panel>
+            </div>
+
+            <div className="dual-grid">
+              <div id="profile-professional">
+                <Panel title="Professional Information" subtitle="Maintain role, experience, reporting, and license records.">
+                  <form
+                    className="form-grid"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      handleProfileSave('Professional information updated.')
+                    }}
+                  >
+                    <input
+                      value={profileData.professional.designation}
+                      onChange={handleProfileInputChange('professional', 'designation')}
+                      placeholder="Designation"
+                      required
+                    />
+                    <input
+                      value={profileData.professional.specialization}
+                      onChange={handleProfileInputChange('professional', 'specialization')}
+                      placeholder="Specialization"
+                    />
+                    <input
+                      value={profileData.professional.licenseNumber}
+                      onChange={handleProfileInputChange('professional', 'licenseNumber')}
+                      placeholder="License / Registration Number"
+                    />
+                    <input
+                      value={profileData.professional.experience}
+                      onChange={handleProfileInputChange('professional', 'experience')}
+                      placeholder="Years of Experience"
+                    />
+                    <input
+                      type="date"
+                      value={profileData.professional.joiningDate}
+                      onChange={handleProfileInputChange('professional', 'joiningDate')}
+                    />
+                    <input
+                      value={profileData.professional.reportingManager}
+                      onChange={handleProfileInputChange('professional', 'reportingManager')}
+                      placeholder="Reporting Manager"
+                    />
+                    <input
+                      className="full-span"
+                      value={profileData.professional.facility}
+                      onChange={handleProfileInputChange('professional', 'facility')}
+                      placeholder="Assigned Branch / Facility"
+                    />
+                    <button type="submit" className="primary-button">
+                      Save professional details
+                    </button>
+                  </form>
+                </Panel>
+              </div>
+
+              <Panel title="Account Information" subtitle="Review role access, status, and sign-in settings.">
+                <div className="profile-data-list">
+                  <ProfileDataRow icon="user" label="Username" value={profileData.account.username} />
+                  <ProfileDataRow icon="briefcase" label="User Role" value={profileData.account.userRole} />
+                  <ProfileDataRow icon="pulse" label="Account Status" value={profileData.account.accountStatus} />
+                  <ProfileDataRow icon="clock" label="Last Login" value={profileData.account.lastLogin} />
+                  <ProfileDataRow icon="shield" label="Two-Factor Authentication" value={profileData.account.twoFactorStatus} />
+                </div>
+                <div className="profile-inline-actions">
+                  <button type="button" className="ghost-button" onClick={handleToggleTwoFactor}>
+                    {profileData.account.twoFactorStatus === 'Enabled' ? 'Disable' : 'Enable'} two-factor authentication
                   </button>
                 </div>
-                <img
-                  src={roadblockImage}
-                  alt="Roadblock sign showing that the profile section is under development"
-                  className="profile-roadblock-image"
-                />
+              </Panel>
+            </div>
+
+            <div id="profile-schedule">
+              <Panel title="Availability And Schedule" subtitle="Keep working hours, shift details, and leave planning visible.">
+                <form
+                  className="form-grid"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    handleProfileSave('Availability and schedule updated.')
+                  }}
+                >
+                  <input
+                    value={profileData.schedule.workingHours}
+                    onChange={handleProfileInputChange('schedule', 'workingHours')}
+                    placeholder="Working Hours"
+                  />
+                  <input
+                    value={profileData.schedule.shiftInformation}
+                    onChange={handleProfileInputChange('schedule', 'shiftInformation')}
+                    placeholder="Shift Information"
+                  />
+                  <input
+                    value={profileData.schedule.weeklySchedule}
+                    onChange={handleProfileInputChange('schedule', 'weeklySchedule')}
+                    placeholder="Weekly Schedule"
+                  />
+                  <input
+                    value={profileData.schedule.leaveBalance}
+                    onChange={handleProfileInputChange('schedule', 'leaveBalance')}
+                    placeholder="Leave Balance"
+                  />
+                  <input
+                    className="full-span"
+                    value={profileData.schedule.upcomingLeaves}
+                    onChange={handleProfileInputChange('schedule', 'upcomingLeaves')}
+                    placeholder="Upcoming Leaves"
+                  />
+                  <button type="submit" className="primary-button">
+                    Save schedule
+                  </button>
+                </form>
+              </Panel>
+            </div>
+
+            <Panel title="Performance Overview" subtitle="Track attendance, appointments, tasks, and monthly activity.">
+              <div className="profile-overview-grid">
+                {profileOverviewCards.map((card) => (
+                  <SummaryTile key={`performance-${card.label}`} icon={card.icon} label={card.label} value={card.value} />
+                ))}
               </div>
+              <div className="detail-card">
+                <h4>Monthly Activity Statistics</h4>
+                <p>{profileData.performance.monthlyActivity}</p>
+              </div>
+            </Panel>
+
+            <div id="profile-documents">
+              <Panel title="Documents" subtitle="Keep identification, certificates, licenses, and other files ready.">
+                <div className="card-grid">
+                  {profileData.documents.map((documentItem) => (
+                    <article key={documentItem.name} className="info-panel emphasis profile-document-card">
+                      <div className="panel-icon-row">
+                        <span className="panel-icon">
+                          <Icon name="file" />
+                        </span>
+                        <span className="soft-pill">{documentItem.updatedOn}</span>
+                      </div>
+                      <h3>{documentItem.name}</h3>
+                      <p>{documentItem.status}</p>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => handleDocumentDownload(documentItem)}
+                      >
+                        Download summary
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </Panel>
+            </div>
+
+            <div id="profile-preferences" className="dual-grid">
+              <Panel title="Preferences" subtitle="Adjust language, notifications, theme, and time zone.">
+                <form
+                  className="form-grid"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    handleProfileSave('Preferences updated.')
+                  }}
+                >
+                  <input
+                    value={profileData.preferences.language}
+                    onChange={handleProfileInputChange('preferences', 'language')}
+                    placeholder="Language Preference"
+                  />
+                  <input
+                    value={profileData.preferences.notifications}
+                    onChange={handleProfileInputChange('preferences', 'notifications')}
+                    placeholder="Notification Settings"
+                  />
+                  <select
+                    value={profileData.preferences.themeSetting}
+                    onChange={(event) => {
+                      handleProfileFieldChange('preferences', 'themeSetting', event.target.value)
+                      if (event.target.value === 'Dark mode') {
+                        setTheme('dark')
+                      }
+                      if (event.target.value === 'Light mode') {
+                        setTheme('light')
+                      }
+                    }}
+                  >
+                    <option>Dark mode</option>
+                    <option>Light mode</option>
+                    <option>Follow current workspace</option>
+                  </select>
+                  <input
+                    value={profileData.preferences.timeZone}
+                    onChange={handleProfileInputChange('preferences', 'timeZone')}
+                    placeholder="Time Zone"
+                  />
+                  <button type="submit" className="primary-button">
+                    Save preferences
+                  </button>
+                </form>
+              </Panel>
+
+              <Panel title="Theme Control" subtitle="Switch theme directly from the profile area whenever needed.">
+                <div className="profile-data-list">
+                  <ProfileDataRow icon="moon" label="Current Theme" value={theme === 'dark' ? 'Dark mode' : 'Light mode'} />
+                  <ProfileDataRow icon="settings" label="Theme Preference" value={profileData.preferences.themeSetting} />
+                </div>
+                <button type="button" className="ghost-button profile-theme-toggle" onClick={toggleTheme}>
+                  Turn on {theme === 'dark' ? 'light' : 'dark'} mode from profile
+                </button>
+              </Panel>
+            </div>
+
+            <div id="profile-security" className="dual-grid">
+              <Panel title="Security" subtitle="Change passwords, review history, and monitor active sessions.">
+                <form className="form-grid" onSubmit={handlePasswordChange}>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(event) =>
+                      setPasswordForm({ ...passwordForm, currentPassword: event.target.value })
+                    }
+                    placeholder="Current password"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(event) =>
+                      setPasswordForm({ ...passwordForm, newPassword: event.target.value })
+                    }
+                    placeholder="New password"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <input
+                    className="full-span"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(event) =>
+                      setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })
+                    }
+                    placeholder="Confirm new password"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button type="submit" className="primary-button">
+                    Change password
+                  </button>
+                </form>
+
+                <div className="detail-card">
+                  <h4>Security Alerts</h4>
+                  <ul className="plain-list">
+                    {profileData.security.alerts.map((alert) => (
+                      <li key={alert}>{alert}</li>
+                    ))}
+                  </ul>
+                </div>
+              </Panel>
+
+              <Panel title="Login History And Sessions" subtitle="Review recent sign-ins and currently active devices.">
+                <div className="detail-card">
+                  <h4>Login History</h4>
+                  <div className="timeline-list compact">
+                    {profileData.security.loginHistory.map((entry) => (
+                      <article key={`${entry.label}-${entry.detail}`} className="timeline-item">
+                        <div className="timeline-icon">
+                          <Icon name="clock" />
+                        </div>
+                        <div>
+                          <strong>{entry.label}</strong>
+                          <p>{entry.detail}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="detail-card">
+                  <h4>Active Sessions</h4>
+                  <div className="timeline-list compact">
+                    {profileData.security.activeSessions.map((entry) => (
+                      <article key={`${entry.label}-${entry.detail}`} className="timeline-item">
+                        <div className="timeline-icon">
+                          <Icon name="shield" />
+                        </div>
+                        <div>
+                          <strong>{entry.label}</strong>
+                          <p>{entry.detail}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </Panel>
+            </div>
+
+            <Panel title="Bio" subtitle="A professional summary used across the workspace profile.">
+              <form
+                className="form-grid"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  handleProfileSave('Profile bio updated.')
+                }}
+              >
+                <textarea
+                  className="full-span"
+                  value={profileData.bio}
+                  onChange={(event) => setProfileData((current) => ({ ...current, bio: event.target.value }))}
+                  placeholder="Bio"
+                />
+                <button type="submit" className="primary-button">
+                  Save bio
+                </button>
+              </form>
             </Panel>
           </section>
           )}
