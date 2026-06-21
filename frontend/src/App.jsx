@@ -38,7 +38,10 @@ const defaultAuthData = {
   username: 'dr.sarah',
   password: 'BlueCare@123',
 }
-
+const defaultAuthData = {
+  username: 'navin',
+  password: 'BlueCare',
+}
 const platformAdminAccount = {
   username: 'Aniket',
   password: 'Aniket@2026',
