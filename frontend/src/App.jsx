@@ -1084,7 +1084,7 @@ function App() {
     }))
     setAuthMode('login')
     setAuthStatusMessage('You have been signed out. Sign in again to continue.')
-  }, [authData.username])
+  }, [])
 
   const handleGlobalResultSelect = useCallback(
     (result) => {
@@ -1425,6 +1425,10 @@ function App() {
                   <div>
                     <p className="eyebrow">BlueCare Access</p>
                     <h1>Secure Healthcare Workspace</h1>
+                    <p className="auth-intro-copy">
+                      Sign in to access patient management, appointments, clinical records,
+                      billing, reporting, and healthcare operations from a unified platform.
+                    </p>
                   </div>
                 </div>
                 <p className="eyebrow auth-mode-label">
@@ -1433,7 +1437,7 @@ function App() {
                 <h2>{authMode === 'login' ? 'Welcome Back' : 'Reset Your Password'}</h2>
                 <p>
                   {authMode === 'login'
-                    ? 'Sign in to access patient management, appointments, clinical records, billing, reporting, and healthcare operations from a unified platform.'
+                    ? 'Enter your credentials to continue to the BlueCare Healthcare Management System.'
                     : 'Enter your username and choose a new password to continue to the BlueCare Healthcare Management System.'}
                 </p>
               </div>
