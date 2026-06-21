@@ -233,10 +233,10 @@ function App() {
   const [profileData, setProfileData] = useState(() =>
     readStoredJson(profileStorageKey, defaultUserProfile),
   )
-  const [loginForm, setLoginForm] = useState(() => ({
-    username: readStoredJson(authStorageKey, defaultAuthData).username,
+  const [loginForm, setLoginForm] = useState({
+    username: '',
     password: '',
-  }))
+  })
   const [forgotForm, setForgotForm] = useState({
     username: '',
     newPassword: '',
@@ -1079,7 +1079,7 @@ function App() {
     setActiveSearchCursor(0)
     setLoginForm((current) => ({
       ...current,
-      username: authData.username,
+      username: '',
       password: '',
     }))
     setAuthMode('login')
@@ -1417,79 +1417,29 @@ function App() {
         </div>
 
         <section className="auth-layout">
-          <article className="auth-preview-card">
-            <div className="auth-preview-header">
-              <img src="/android-chrome-192x192.png" alt="BlueCare icon" className="auth-brand-image" />
-              <div>
-                <p className="eyebrow">BlueCare Access</p>
-                <h1>Secure staff workspace sign in</h1>
-              </div>
-            </div>
-            <p className="auth-preview-copy">
-              A sharper, calmer login flow for staff accounts, schedules, profile management,
-              document access, and secure password updates.
-            </p>
-
-            <div className="auth-preview-grid">
-              <article className="auth-preview-tile">
-                <small>Profile Preview</small>
-                <strong>{profileData.personal.fullName}</strong>
-                <span>{profileData.professional.designation}</span>
-              </article>
-              <article className="auth-preview-tile">
-                <small>Department</small>
-                <strong>{profileData.personal.department}</strong>
-                <span>{profileData.professional.facility}</span>
-              </article>
-              <article className="auth-preview-tile">
-                <small>Account Status</small>
-                <strong>{profileData.account.accountStatus}</strong>
-                <span>2FA {profileData.account.twoFactorStatus}</span>
-              </article>
-            </div>
-
-            <div className="auth-preview-meta">
-              <div className="auth-inline-item">
-                <span className="summary-tile-icon">
-                  <Icon name="email" />
-                </span>
-                <span>{profileData.personal.emailAddress}</span>
-              </div>
-              <div className="auth-inline-item">
-                <span className="summary-tile-icon">
-                  <Icon name="phone" />
-                </span>
-                <span>{profileData.personal.contactNumber}</span>
-              </div>
-              <div className="auth-inline-item">
-                <span className="summary-tile-icon">
-                  <Icon name="building" />
-                </span>
-                <span>{profileData.professional.facility}</span>
-              </div>
-            </div>
-          </article>
-
-          <article className="auth-card">
+          <article className="auth-card auth-card-centered">
             <div className="auth-card-top">
               <div>
-                <p className="eyebrow">{authMode === 'login' ? 'Sign In' : 'Password Recovery'}</p>
-                <h2>{authMode === 'login' ? 'Welcome back to BlueCare' : 'Reset your password'}</h2>
+                <div className="auth-brand-lockup">
+                  <img src="/android-chrome-192x192.png" alt="BlueCare icon" className="auth-brand-image" />
+                  <div>
+                    <p className="eyebrow">BlueCare Access</p>
+                    <h1>Secure Healthcare Workspace</h1>
+                  </div>
+                </div>
+                <p className="eyebrow auth-mode-label">
+                  {authMode === 'login' ? 'Sign In' : 'Password Recovery'}
+                </p>
+                <h2>{authMode === 'login' ? 'Welcome Back' : 'Reset Your Password'}</h2>
                 <p>
                   {authMode === 'login'
-                    ? 'Use your username and password to open the healthcare workspace.'
-                    : 'Confirm your username and choose a new password to restore access.'}
+                    ? 'Sign in to access patient management, appointments, clinical records, billing, reporting, and healthcare operations from a unified platform.'
+                    : 'Enter your username and choose a new password to continue to the BlueCare Healthcare Management System.'}
                 </p>
               </div>
               <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label="Switch theme">
                 <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
               </button>
-            </div>
-
-            <div className="auth-credentials-card">
-              <small>Starter credentials</small>
-              <strong>Username: {authData.username}</strong>
-              <span>Password: {authData.password}</span>
             </div>
 
             <form className="auth-form" onSubmit={authMode === 'login' ? handleLoginSubmit : handleForgotPasswordSubmit}>
@@ -1510,6 +1460,14 @@ function App() {
                     autoComplete="current-password"
                     required
                   />
+                  <label className="auth-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(event) => setRememberMe(event.target.checked)}
+                    />
+                    <span>Remember Me</span>
+                  </label>
                   <button type="submit" className="primary-button auth-submit">
                     Sign in
                   </button>
@@ -1564,6 +1522,7 @@ function App() {
             </div>
 
             <p className="auth-status-message">{authStatusMessage}</p>
+            <p className="auth-footnote">Secure access for authorized healthcare personnel only.</p>
           </article>
         </section>
       </div>
@@ -1603,14 +1562,18 @@ function App() {
             <Icon name="pulse" />
           </div>
           <div className="brand-copy">
-            <p className="eyebrow">EMR Suite</p>
-            <h1>BlueCare solutions</h1>
-            <p className="sidebar-copy">A calmer, clearer workspace for daily patient care.</p>
+            <p className="eyebrow">{isPlatformAdmin ? 'Platform Console' : 'EMR Suite'}</p>
+            <h1>{isPlatformAdmin ? 'BlueCare solutions' : 'BlueCare solutions'}</h1>
+            <p className="sidebar-copy">
+              {isPlatformAdmin
+                ? 'Protected super-administrator controls for platform-wide operations.'
+                : 'A calmer, clearer workspace for daily patient care.'}
+            </p>
           </div>
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          {workspaceNavItems.map((item) => (
             <button
               key={item.key}
               type="button"
@@ -1631,9 +1594,11 @@ function App() {
           <button type="button" className="ghost-button light" onClick={toggleTheme}>
             Switch to {theme === 'dark' ? 'light' : 'dark'} mode
           </button>
-          <button type="button" className="ghost-button light" onClick={handleResetWorkspace}>
-            Refresh Starter Records
-          </button>
+          {!isPlatformAdmin ? (
+            <button type="button" className="ghost-button light" onClick={handleResetWorkspace}>
+              Refresh Starter Records
+            </button>
+          ) : null}
           <button type="button" className="ghost-button light" onClick={handleLogout}>
             Sign out
           </button>
@@ -1659,13 +1624,17 @@ function App() {
               </button>
             ) : null}
 
-            <button type="button" className="brand-chip" onClick={() => changeView('Dashboard')}>
+            <button
+              type="button"
+              className="brand-chip"
+              onClick={() => changeView(isPlatformAdmin ? 'PlatformAdmin' : 'Dashboard')}
+            >
               <span className="brand-chip-mark">
                 <Icon name="pulse" />
               </span>
               <span className="brand-chip-copy">
-                <small>BlueCare</small>
-                <strong>solutions</strong>
+                <small>{isPlatformAdmin ? 'BlueCare Platform' : 'BlueCare'}</small>
+                <strong>{isPlatformAdmin ? 'administration' : 'solutions'}</strong>
               </span>
             </button>
           </div>
@@ -1682,7 +1651,11 @@ function App() {
               }}
               onFocus={() => setIsSearchOpen(true)}
               onKeyDown={handleGlobalSearchKeyDown}
-              placeholder="Search patients, doctors, visits, invoices, and pages"
+              placeholder={
+                isPlatformAdmin
+                  ? 'Search platform administration pages'
+                  : 'Search patients, doctors, visits, invoices, and pages'
+              }
               aria-label="Global search"
               role="combobox"
               aria-expanded={isSearchOpen}
@@ -1755,14 +1728,16 @@ function App() {
             >
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
             </button>
-            <button
-              type="button"
-              className={activeView === 'Profile' ? 'profile-shortcut active' : 'profile-shortcut'}
-              onClick={() => changeView('Profile')}
-              aria-label="Open profile section"
-            >
-              <Icon name="user" />
-            </button>
+            {!isPlatformAdmin ? (
+              <button
+                type="button"
+                className={activeView === 'Profile' ? 'profile-shortcut active' : 'profile-shortcut'}
+                onClick={() => changeView('Profile')}
+                aria-label="Open profile section"
+              >
+                <Icon name="user" />
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -1923,6 +1898,110 @@ function App() {
                     text="Record charges, payments, and balances."
                     onClick={() => changeView('Billing')}
                   />
+                </div>
+              </Panel>
+            </div>
+          </section>
+          )}
+
+          {activeView === 'PlatformAdmin' && (
+          <section className="content-grid">
+            <Panel
+              title="BlueCare Solutions Platform Administration"
+              subtitle="This module is reserved exclusively for BlueCare Solutions platform administrators and is not accessible to clinic, hospital, doctor, receptionist, or staff accounts."
+            >
+              <div className="platform-admin-intro">
+                <div className="detail-card platform-admin-callout">
+                  <h4>Platform Administration Console</h4>
+                  <p>
+                    The Platform Administration Console is responsible for managing all tenant
+                    organizations using the BlueCare Healthcare Management System. Administrators can
+                    create, configure, suspend, activate, and monitor healthcare organizations while
+                    overseeing subscriptions, contracts, billing, feature access, and platform-wide
+                    operations.
+                  </p>
+                </div>
+
+                <div className="detail-card platform-admin-callout">
+                  <h4>Important Notice</h4>
+                  <p>
+                    This workspace is intended solely for BlueCare Solutions internal operations.
+                    Administrative actions may affect multiple healthcare organizations across the
+                    platform. All activities must be logged, auditable, and permission-controlled.
+                  </p>
+                </div>
+              </div>
+            </Panel>
+
+            <section className="top-strip compact">
+              {platformAdminWidgets.map((item) => (
+                <StatCard
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  value={item.value}
+                  format={item.format}
+                />
+              ))}
+            </section>
+
+            <div className="dual-grid">
+              <Panel title="Core Responsibilities" subtitle="Operational controls across all organizations on the platform">
+                <ul className="plain-list platform-admin-list">
+                  {platformAdminResponsibilities.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </Panel>
+
+              <Panel title="Available Sections" subtitle="Administrative areas available to super-administrator accounts only">
+                <div className="platform-section-grid">
+                  {platformAdminSections.map((section, index) => (
+                    <article key={section} className="info-panel emphasis platform-section-card">
+                      <div className="panel-icon-row">
+                        <span className="panel-icon">
+                          <Icon name="shield" />
+                        </span>
+                        <span className="soft-pill">{index + 1}</span>
+                      </div>
+                      <h3>{section}</h3>
+                      <p>Restricted platform administration workspace section.</p>
+                    </article>
+                  ))}
+                </div>
+              </Panel>
+            </div>
+
+            <div className="dual-grid">
+              <Panel title="Recent Activities" subtitle="Recent platform-level operational updates">
+                <div className="timeline-list">
+                  {platformAdminActivities.map((activity) => (
+                    <article key={activity.title} className="timeline-item">
+                      <div className="timeline-icon">
+                        <Icon name="building" />
+                      </div>
+                      <div>
+                        <strong>{activity.title}</strong>
+                        <p>{activity.detail}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </Panel>
+
+              <Panel title="System Alerts" subtitle="Items requiring super-administrator attention">
+                <div className="timeline-list">
+                  {platformAdminAlerts.map((alert) => (
+                    <article key={alert.title} className="timeline-item">
+                      <div className="timeline-icon">
+                        <Icon name="alert" />
+                      </div>
+                      <div>
+                        <strong>{alert.title}</strong>
+                        <p>{alert.detail}</p>
+                      </div>
+                    </article>
+                  ))}
                 </div>
               </Panel>
             </div>

@@ -1407,12 +1407,12 @@ th {
 }
 
 .auth-layout {
-  width: min(1180px, calc(100% - 48px));
+  width: min(680px, calc(100% - 48px));
   margin: 32px auto 40px;
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 24px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-items: center;
 }
 
 .auth-preview-card,
@@ -1422,18 +1422,6 @@ th {
   border-radius: 30px;
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(18px);
-}
-
-.auth-preview-card {
-  padding: 28px;
-  display: grid;
-  gap: 22px;
-}
-
-.auth-preview-header {
-  display: flex;
-  gap: 18px;
-  align-items: center;
 }
 
 .auth-brand-image,
@@ -1447,13 +1435,12 @@ th {
   box-shadow: 0 18px 34px rgba(0, 119, 182, 0.18);
 }
 
-.auth-preview-card h1,
+.auth-card h1,
 .auth-card h2 {
   margin: 0;
   color: var(--ink);
 }
 
-.auth-preview-copy,
 .auth-card-top p,
 .profile-bio-copy {
   margin: 0;
@@ -1461,18 +1448,12 @@ th {
   line-height: 1.7;
 }
 
-.auth-preview-grid,
 .profile-overview-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
-.auth-preview-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.auth-preview-tile,
 .profile-action-card,
 .profile-data-row {
   border-radius: 22px;
@@ -1480,33 +1461,19 @@ th {
   border: 1px solid var(--line);
 }
 
-.auth-preview-tile {
-  padding: 18px;
-  display: grid;
-  gap: 6px;
-}
-
-.auth-preview-tile small,
 .auth-credentials-card small,
 .profile-data-copy small {
   color: var(--soft-ink);
 }
 
-.auth-preview-tile strong,
 .auth-credentials-card strong,
 .profile-data-copy strong {
   color: var(--ink);
 }
 
-.auth-preview-tile span,
 .auth-credentials-card span {
   color: var(--soft-ink);
   line-height: 1.55;
-}
-
-.auth-preview-meta {
-  display: grid;
-  gap: 12px;
 }
 
 .auth-inline-item {
@@ -1523,6 +1490,10 @@ th {
   align-self: center;
 }
 
+.auth-card-centered {
+  gap: 20px;
+}
+
 .auth-card-top {
   display: flex;
   justify-content: space-between;
@@ -1534,18 +1505,38 @@ th {
   margin: 4px 0 10px;
 }
 
-.auth-credentials-card {
-  padding: 16px 18px;
-  border-radius: 22px;
-  display: grid;
-  gap: 6px;
-  background: var(--card-background-soft);
-  border: 1px solid var(--line);
+.auth-brand-lockup {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.auth-brand-lockup h1 {
+  font-size: clamp(1.55rem, 2.8vw, 2rem);
+}
+
+.auth-mode-label {
+  margin-bottom: 8px;
 }
 
 .auth-form {
   display: grid;
   gap: 14px;
+}
+
+.auth-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.auth-checkbox-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--bright-teal-blue);
 }
 
 .auth-submit {
@@ -1561,6 +1552,45 @@ th {
   margin: 0;
   color: var(--soft-ink);
   line-height: 1.6;
+}
+
+.auth-footnote {
+  margin: 0;
+  color: var(--soft-ink);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.platform-admin-intro,
+.platform-section-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.platform-admin-intro {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.platform-admin-callout {
+  min-height: 100%;
+}
+
+.platform-admin-list {
+  gap: 12px;
+}
+
+.platform-admin-list li {
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.platform-section-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.platform-section-card {
+  display: grid;
+  gap: 12px;
 }
 
 .profile-hero-card {
@@ -1892,6 +1922,8 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .platform-admin-intro,
+  .platform-section-grid,
   .profile-hero-meta,
   .patient-summary-grid {
     grid-template-columns: 1fr;
@@ -1964,7 +1996,6 @@ th {
   .panel-header,
   .profile-header,
   .auth-card-top,
-  .auth-preview-header,
   .profile-hero-main,
   .appointment-card,
   .appointment-main,
