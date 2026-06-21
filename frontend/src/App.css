@@ -1401,6 +1401,251 @@ th {
   min-height: 180px;
 }
 
+.auth-shell {
+  min-height: 100vh;
+  background: var(--page-background);
+}
+
+.auth-layout {
+  width: min(1180px, calc(100% - 48px));
+  margin: 32px auto 40px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.auth-preview-card,
+.auth-card {
+  background: var(--card-background);
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(18px);
+}
+
+.auth-preview-card {
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+}
+
+.auth-preview-header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.auth-brand-image,
+.profile-hero-avatar {
+  width: 78px;
+  height: 78px;
+  flex: 0 0 78px;
+  border-radius: 24px;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--light-cyan), var(--frosted-blue));
+  box-shadow: 0 18px 34px rgba(0, 119, 182, 0.18);
+}
+
+.auth-preview-card h1,
+.auth-card h2 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.auth-preview-copy,
+.auth-card-top p,
+.profile-bio-copy {
+  margin: 0;
+  color: var(--soft-ink);
+  line-height: 1.7;
+}
+
+.auth-preview-grid,
+.profile-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.auth-preview-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.auth-preview-tile,
+.profile-action-card,
+.profile-data-row {
+  border-radius: 22px;
+  background: var(--card-background-soft);
+  border: 1px solid var(--line);
+}
+
+.auth-preview-tile {
+  padding: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.auth-preview-tile small,
+.auth-credentials-card small,
+.profile-data-copy small {
+  color: var(--soft-ink);
+}
+
+.auth-preview-tile strong,
+.auth-credentials-card strong,
+.profile-data-copy strong {
+  color: var(--ink);
+}
+
+.auth-preview-tile span,
+.auth-credentials-card span {
+  color: var(--soft-ink);
+  line-height: 1.55;
+}
+
+.auth-preview-meta {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-inline-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.auth-card {
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+  align-self: center;
+}
+
+.auth-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.auth-card-top h2 {
+  margin: 4px 0 10px;
+}
+
+.auth-credentials-card {
+  padding: 16px 18px;
+  border-radius: 22px;
+  display: grid;
+  gap: 6px;
+  background: var(--card-background-soft);
+  border: 1px solid var(--line);
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-submit {
+  width: 100%;
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.auth-status-message {
+  margin: 0;
+  color: var(--soft-ink);
+  line-height: 1.6;
+}
+
+.profile-hero-card {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-hero-main {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.profile-hero-copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-hero-copy h3 {
+  margin: 0;
+  font-size: clamp(1.7rem, 2.5vw, 2.2rem);
+  color: var(--ink);
+}
+
+.profile-hero-copy p {
+  margin: 0;
+  color: var(--soft-ink);
+  font-weight: 600;
+}
+
+.profile-inline-pills,
+.profile-status-row,
+.profile-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-hero-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.profile-action-card {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  text-align: left;
+}
+
+.profile-action-card strong {
+  color: var(--ink);
+}
+
+.profile-data-list {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-data-row {
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.profile-data-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.profile-document-card {
+  display: grid;
+  gap: 14px;
+}
+
 .loading-screen {
   min-height: 100vh;
   display: grid;
@@ -1633,6 +1878,7 @@ th {
 }
 
 @media (max-width: 900px) {
+  .auth-layout,
   .top-strip,
   .top-strip.compact,
   .quick-grid,
@@ -1640,10 +1886,13 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .auth-preview-grid,
+  .profile-overview-grid,
   .card-grid {
     grid-template-columns: 1fr;
   }
 
+  .profile-hero-meta,
   .patient-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -1663,6 +1912,18 @@ th {
 }
 
 @media (max-width: 640px) {
+  .auth-layout {
+    width: calc(100% - 24px);
+    margin: 18px auto 24px;
+    gap: 16px;
+  }
+
+  .auth-card,
+  .auth-preview-card {
+    padding: 22px;
+    border-radius: 24px;
+  }
+
   .workspace {
     padding: 16px;
   }
@@ -1702,6 +1963,9 @@ th {
 
   .panel-header,
   .profile-header,
+  .auth-card-top,
+  .auth-preview-header,
+  .profile-hero-main,
   .appointment-card,
   .appointment-main,
   .doctor-card-top {

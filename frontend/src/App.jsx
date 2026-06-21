@@ -344,11 +344,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    setIsSearchOpen(false)
-    setActiveSearchCursor(0)
-  }, [activeView])
-
-  useEffect(() => {
     function handleOutsideSearchClick(event) {
       if (!searchRef.current?.contains(event.target)) {
         setIsSearchOpen(false)
@@ -733,6 +728,8 @@ function App() {
   const changeView = useCallback((view) => {
     setActiveView(view)
     setIsMenuOpen(false)
+    setIsSearchOpen(false)
+    setActiveSearchCursor(0)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
@@ -3237,6 +3234,20 @@ function SummaryTile({ icon, label, value }) {
   )
 }
 
+function ProfileDataRow({ icon, label, value }) {
+  return (
+    <div className="profile-data-row">
+      <span className="summary-tile-icon">
+        <Icon name={icon} />
+      </span>
+      <div className="profile-data-copy">
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  )
+}
+
 function DataTable({ columns, rows }) {
   return (
     <div className="table-wrap">
@@ -3346,6 +3357,8 @@ function Icon({ name }) {
     alert:
       'M12 5.5 19 18H5l7-12.5Zm0 4.2v3.6m0 2.4h.01',
     bell: 'M12 4a4 4 0 0 1 4 4v1.2c0 .9.3 1.8.9 2.5l.8.9c.7.8.1 2.1-1 2.1H7.3c-1.1 0-1.7-1.3-1-2.1l.8-.9c.6-.7.9-1.6.9-2.5V8a4 4 0 0 1 4-4Zm0 14a2.2 2.2 0 0 0 2.1-1.5H9.9A2.2 2.2 0 0 0 12 18Z',
+    briefcase: 'M9 6V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V6m-11 3h16m-14 9h12A2 2 0 0 0 20 16V8a2 2 0 0 0-2-2H6A2 2 0 0 0 4 8v8a2 2 0 0 0 2 2Z',
+    building: 'M5 20V6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5V20M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01M3 20h18',
     calendar:
       'M7 3v2M17 3v2M4 8h16M5.5 5h13A1.5 1.5 0 0 1 20 6.5v10A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5v-10A1.5 1.5 0 0 1 5.5 5Z',
     capsule: 'M8.5 6.5a3.5 3.5 0 0 1 5 0l3 3a3.5 3.5 0 1 1-5 5l-3-3a3.5 3.5 0 0 1 0-5Zm1.2 1.2 4.6 4.6',
@@ -3353,7 +3366,11 @@ function Icon({ name }) {
     clipboard:
       'M9 4h6a1 1 0 0 1 1 1v1h1.5A1.5 1.5 0 0 1 19 7.5v11A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-11A1.5 1.5 0 0 1 6.5 6H8V5a1 1 0 0 1 1-1Zm0 3h6V6H9v1Z',
     close: 'M6 6 18 18M18 6 6 18',
+    clock: 'M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+    email: 'M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v11A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-11ZM5.5 7l6.5 5L18.5 7',
+    file: 'M8 3h6l4 4v12.5A1.5 1.5 0 0 1 16.5 21h-9A1.5 1.5 0 0 1 6 19.5v-15A1.5 1.5 0 0 1 7.5 3H8Zm5 1.5V8h3.5',
     grid: 'M5 5h5v5H5V5Zm9 0h5v5h-5V5ZM5 14h5v5H5v-5Zm9 0h5v5h-5v-5Z',
+    lock: 'M8 10V7.8A4 4 0 0 1 12 4a4 4 0 0 1 4 3.8V10m-7.5 0h7A1.5 1.5 0 0 1 17 11.5v6A1.5 1.5 0 0 1 15.5 19h-7A1.5 1.5 0 0 1 7 17.5v-6A1.5 1.5 0 0 1 8.5 10Z',
     patients:
       'M8 12a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm8-1a2.5 2.5 0 1 0-2.5-2.5A2.5 2.5 0 0 0 16 11Zm-8 2c-2.8 0-5 1.4-5 3v1h10v-1c0-1.6-2.2-3-5-3Zm8 .5c-1 0-1.9.2-2.7.6.8.7 1.2 1.5 1.2 2.4v.5H20v-.4c0-1.6-1.8-3.1-4-3.1Z',
     moon: 'M19 14.8A7 7 0 1 1 9.2 5 5.8 5.8 0 0 0 19 14.8Z',
@@ -3362,6 +3379,8 @@ function Icon({ name }) {
     pulse: 'M3 13h4l2.2-5.2L13 16l2.4-5H21',
     menu: 'M4 7h16M4 12h16M4 17h16',
     search: 'm19 19-3.5-3.5M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13Z',
+    settings: 'M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Zm7 3.5-.9-.3a7.6 7.6 0 0 0-.4-1l.5-.8a1 1 0 0 0-.1-1.2l-1.1-1.1a1 1 0 0 0-1.2-.1l-.8.5a7.6 7.6 0 0 0-1-.4L14 5a1 1 0 0 0-1-.8h-2a1 1 0 0 0-1 .8l-.3.9a7.6 7.6 0 0 0-1 .4l-.8-.5a1 1 0 0 0-1.2.1L5.6 7a1 1 0 0 0-.1 1.2l.5.8a7.6 7.6 0 0 0-.4 1L4.7 12a1 1 0 0 0-.7 1v2a1 1 0 0 0 .7 1l.9.3c.1.3.2.7.4 1l-.5.8a1 1 0 0 0 .1 1.2l1.1 1.1a1 1 0 0 0 1.2.1l.8-.5c.3.1.7.2 1 .4l.3.9a1 1 0 0 0 1 .7h2a1 1 0 0 0 1-.7l.3-.9c.3-.1.7-.2 1-.4l.8.5a1 1 0 0 0 1.2-.1l1.1-1.1a1 1 0 0 0 .1-1.2l-.5-.8c.1-.3.2-.7.4-1l.9-.3a1 1 0 0 0 .7-1v-2a1 1 0 0 0-.7-1Z',
+    shield: 'M12 3 18.5 5.4v5.2c0 4.2-2.7 7.9-6.5 9.4-3.8-1.5-6.5-5.2-6.5-9.4V5.4L12 3Zm-2.1 8.9 1.5 1.5 3.2-3.4',
     stethoscope:
       'M8 4v5a4 4 0 1 0 8 0V4M8 7H6m10 0h2M12 13v3a3 3 0 1 0 6 0v-1.5a1.5 1.5 0 1 0-1.5-1.5',
     sun: 'M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
@@ -3415,6 +3434,16 @@ function formatReportValue(title, value) {
   return title === 'Revenue Report'
     ? formatCurrency(value)
     : Number(value || 0).toLocaleString('en-IN')
+}
+
+function formatDateTimeLabel(value) {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(value)
 }
 
 export default App
