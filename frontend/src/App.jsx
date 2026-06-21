@@ -39,8 +39,8 @@ const defaultAuthData = {
 }
 
 const platformAdminAccount = {
-  username: 'platform.superadmin',
-  password: 'BlueCareSuper@123',
+  username: 'Aniket',
+  password: 'Aniket@2026',
 }
 
 const platformAdminNavItems = [{ key: 'PlatformAdmin', label: 'Platform Admin', icon: 'shield' }]
