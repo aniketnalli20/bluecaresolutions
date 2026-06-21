@@ -7,7 +7,7 @@ import {
 } from './services/emrStore'
 import './App.css'
 
-const navItems = [
+const clinicalNavItems = [
   { key: 'Dashboard', label: 'Dashboard', icon: 'grid' },
   { key: 'Patients', label: 'Patients', icon: 'patients' },
   { key: 'Appointments', label: 'Appointments', icon: 'calendar' },
@@ -29,12 +29,21 @@ const toastDurationMs = 3200
 const compactLayoutQuery = '(max-width: 1240px)'
 const authStorageKey = 'bluecare-auth'
 const sessionStorageKey = 'bluecare-session'
+const accountScopeStorageKey = 'bluecare-account-scope'
 const profileStorageKey = 'bluecare-profile'
+const rememberMeStorageKey = 'bluecare-remember-me'
 
 const defaultAuthData = {
   username: 'dr.sarah',
   password: 'BlueCare@123',
 }
+
+const platformAdminAccount = {
+  username: 'platform.superadmin',
+  password: 'BlueCareSuper@123',
+}
+
+const platformAdminNavItems = [{ key: 'PlatformAdmin', label: 'Platform Admin', icon: 'shield' }]
 
 const defaultUserProfile = {
   memberSince: 'January 2025',
@@ -124,6 +133,18 @@ function readStoredJson(key, fallbackValue) {
   }
 }
 
+function readStoredSessionFlag() {
+  return localStorage.getItem(sessionStorageKey) === 'true' || sessionStorage.getItem(sessionStorageKey) === 'true'
+}
+
+function readStoredAccountScope() {
+  return (
+    localStorage.getItem(accountScopeStorageKey) ||
+    sessionStorage.getItem(accountScopeStorageKey) ||
+    'clinical'
+  )
+}
+
 const initialPatientForm = {
   full_name: '',
   gender: 'Female',
@@ -192,9 +213,9 @@ function App() {
   const [isCompactLayout, setIsCompactLayout] = useState(() =>
     window.matchMedia(compactLayoutQuery).matches,
   )
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => localStorage.getItem(sessionStorageKey) === 'true',
-  )
+  const [isAuthenticated, setIsAuthenticated] = useState(readStoredSessionFlag)
+  const [currentUserScope, setCurrentUserScope] = useState(readStoredAccountScope)
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem(rememberMeStorageKey) === 'true')
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem(themeStorageKey)
     if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -243,6 +264,7 @@ function App() {
   const searchRef = useRef(null)
   const lastScrollYRef = useRef(window.scrollY)
   const toastTimersRef = useRef([])
+  const isPlatformAdmin = currentUserScope === 'platform-admin'
 
   const playMajorActionSound = useCallback(() => {
     if (!refreshSoundRef.current) {
@@ -275,8 +297,24 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    localStorage.setItem(sessionStorageKey, isAuthenticated ? 'true' : 'false')
-  }, [isAuthenticated])
+    localStorage.setItem(rememberMeStorageKey, rememberMe ? 'true' : 'false')
+  }, [rememberMe])
+
+  useEffect(() => {
+    const persistentStorage = rememberMe ? localStorage : sessionStorage
+    const temporaryStorage = rememberMe ? sessionStorage : localStorage
+
+    if (isAuthenticated) {
+      persistentStorage.setItem(sessionStorageKey, 'true')
+      persistentStorage.setItem(accountScopeStorageKey, currentUserScope)
+    } else {
+      persistentStorage.removeItem(sessionStorageKey)
+      persistentStorage.removeItem(accountScopeStorageKey)
+    }
+
+    temporaryStorage.removeItem(sessionStorageKey)
+    temporaryStorage.removeItem(accountScopeStorageKey)
+  }, [currentUserScope, isAuthenticated, rememberMe])
 
   useEffect(() => {
     localStorage.setItem(authStorageKey, JSON.stringify(authData))
@@ -485,6 +523,11 @@ function App() {
 
   const currentViewMeta = useMemo(
     () => ({
+      PlatformAdmin: {
+        eyebrow: 'Platform Control',
+        title: 'BlueCare Solutions Platform Administration',
+        text: 'Manage organizations, subscriptions, contracts, billing, compliance, and platform-wide operations from a protected super-administrator workspace.',
+      },
       Patients: {
         eyebrow: 'Patient Care',
         title: 'Patient Management',
@@ -534,13 +577,26 @@ function App() {
     [activeView],
   )
 
+  const workspaceNavItems = useMemo(
+    () => (isPlatformAdmin ? platformAdminNavItems : clinicalNavItems),
+    [isPlatformAdmin],
+  )
+
+  const pageSearchItems = useMemo(
+    () =>
+      isPlatformAdmin
+        ? platformAdminNavItems
+        : [...clinicalNavItems, { key: 'Profile', label: 'Profile', icon: 'user' }],
+    [isPlatformAdmin],
+  )
+
   const globalSearchResults = useMemo(() => {
     const query = globalQuery.trim().toLowerCase()
     if (!query) {
       return []
     }
 
-    const pageResults = [...navItems, { key: 'Profile', label: 'Profile', icon: 'user' }]
+    const pageResults = pageSearchItems
       .filter((item) => item.label.toLowerCase().includes(query))
       .map((item) => ({
         id: `page-${item.key}`,
@@ -550,6 +606,10 @@ function App() {
         subtitle: 'Open workspace section',
         view: item.key,
       }))
+
+    if (isPlatformAdmin) {
+      return pageResults.slice(0, 10)
+    }
 
     const patientResults = patients
       .filter((patient) =>
@@ -638,11 +698,14 @@ function App() {
       ...invoiceResults,
       ...notificationResults,
     ].slice(0, 10)
-  }, [appointments, doctors, globalQuery, invoices, notifications, patients])
+  }, [appointments, doctors, globalQuery, invoices, isPlatformAdmin, notifications, pageSearchItems, patients])
 
   const searchSuggestions = useMemo(
     () =>
-      [...navItems.slice(0, 4), { key: 'Profile', label: 'Profile', icon: 'user' }].map((item) => ({
+      (isPlatformAdmin
+        ? platformAdminNavItems
+        : [...clinicalNavItems.slice(0, 4), { key: 'Profile', label: 'Profile', icon: 'user' }]
+      ).map((item) => ({
         id: `suggestion-${item.key}`,
         kind: 'page',
         icon: item.icon,
@@ -650,7 +713,7 @@ function App() {
         subtitle: 'Open workspace section',
         view: item.key,
       })),
-    [],
+    [isPlatformAdmin],
   )
 
   const visibleSearchItems = globalQuery.trim() ? globalSearchResults : searchSuggestions
@@ -682,6 +745,75 @@ function App() {
       },
     ],
     [profileData.performance],
+  )
+
+  const platformAdminWidgets = useMemo(
+    () => [
+      { icon: 'building', label: 'Total Organizations', value: 48, format: 'count' },
+      { icon: 'wallet', label: 'Active Subscriptions', value: 41, format: 'count' },
+      { icon: 'file', label: 'Expiring Contracts', value: 6, format: 'count' },
+      { icon: 'chart', label: 'Monthly Revenue', value: 845000, format: 'currency' },
+      { icon: 'patients', label: 'Active Users', value: 1284, format: 'count' },
+      { icon: 'pulse', label: 'Platform Health', value: 99, format: 'count' },
+      { icon: 'grid', label: 'Storage Utilization', value: 72, format: 'count' },
+      { icon: 'bell', label: 'Pending Renewals', value: 9, format: 'count' },
+    ],
+    [],
+  )
+
+  const platformAdminSections = useMemo(
+    () => [
+      'Organizations',
+      'Subscriptions',
+      'Contracts',
+      'Billing & Payments',
+      'Plan Management',
+      'Feature Controls',
+      'Platform Analytics',
+      'User Management',
+      'Audit Logs',
+      'Security Center',
+      'System Settings',
+      'Support & Tickets',
+    ],
+    [],
+  )
+
+  const platformAdminResponsibilities = useMemo(
+    () => [
+      'Manage healthcare organizations and clinic onboarding.',
+      'Create and manage subscription plans.',
+      'Configure plan limits, storage quotas, and user capacities.',
+      'Monitor subscription status, renewals, expirations, and payment history.',
+      'Manage service contracts and agreement records.',
+      'Enable or disable modules for specific organizations.',
+      'Review platform usage statistics and operational metrics.',
+      'Monitor active tenants, users, and system health.',
+      'Access audit logs and security reports.',
+      'Manage platform administrators and role permissions.',
+      'Handle billing, invoicing, and revenue tracking.',
+      'Maintain compliance and administrative records.',
+    ],
+    [],
+  )
+
+  const platformAdminActivities = useMemo(
+    () => [
+      { title: 'New clinic onboarded', detail: 'North Axis Diagnostics was provisioned with Advanced Care plan.' },
+      { title: 'Renewal confirmed', detail: 'Metro Heart Centre completed annual subscription renewal.' },
+      { title: 'Feature update applied', detail: 'ePrescription module enabled for Sunrise MultiCare.' },
+      { title: 'Billing review completed', detail: 'Three pending invoices were reconciled this morning.' },
+    ],
+    [],
+  )
+
+  const platformAdminAlerts = useMemo(
+    () => [
+      { title: 'Contract expiring soon', detail: '6 tenant contracts require renewal review within 14 days.' },
+      { title: 'Storage threshold reached', detail: '2 organizations have crossed 85% of their storage quota.' },
+      { title: 'Audit review pending', detail: 'Security report verification is due for the latest access logs.' },
+    ],
+    [],
   )
 
   const profileQuickActions = useMemo(
@@ -788,15 +920,33 @@ function App() {
     (event) => {
       event.preventDefault()
 
+      const username = loginForm.username.trim().toLowerCase()
+      const loginStamp = formatDateTimeLabel(new Date())
+
       if (
-        loginForm.username.trim().toLowerCase() !== authData.username.toLowerCase() ||
+        username === platformAdminAccount.username.toLowerCase() &&
+        loginForm.password === platformAdminAccount.password
+      ) {
+        setCurrentUserScope('platform-admin')
+        setIsAuthenticated(true)
+        setAuthMode('login')
+        setLoginForm((current) => ({ ...current, password: '' }))
+        setAuthStatusMessage('Welcome back. Your platform administration console is ready.')
+        setStatusMessage('Platform administration console opened.')
+        pushToast('Signed in successfully.', 'success')
+        playMajorActionSound()
+        changeView('PlatformAdmin')
+        return
+      }
+
+      if (
+        username !== authData.username.toLowerCase() ||
         loginForm.password !== authData.password
       ) {
         setAuthStatusMessage('Incorrect username or password. Please try again.')
         return
       }
 
-      const loginStamp = formatDateTimeLabel(new Date())
       setProfileData((current) => ({
         ...current,
         account: {
@@ -815,6 +965,7 @@ function App() {
           ].slice(0, 3),
         },
       }))
+      setCurrentUserScope('clinical')
       setIsAuthenticated(true)
       setAuthMode('login')
       setLoginForm((current) => ({ ...current, password: '' }))
@@ -920,6 +1071,7 @@ function App() {
 
   const handleLogout = useCallback(() => {
     setIsAuthenticated(false)
+    setCurrentUserScope('clinical')
     setIsMenuOpen(false)
     setActiveView('Dashboard')
     setGlobalQuery('')
