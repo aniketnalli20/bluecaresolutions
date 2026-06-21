@@ -2000,6 +2000,490 @@ function PlatformAdminConsole({ onActionFeedback }) {
       </div>
     )
   }
+
+  function renderMedicinesSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Medicine Master">
+          <div className="admin-filter-row">
+            <input value={medicineQuery} onChange={(event) => setMedicineQuery(event.target.value)} placeholder="Search medicines" />
+          </div>
+          <AdminTable
+            columns={['Medicine Name', 'Generic Name', 'Brand Name', 'Category', 'Dosage Form', 'Strength', 'Unit', 'Manufacturer', 'Supplier', 'Purchase Price', 'Selling Price', 'Reorder Level', 'Minimum Stock Level', 'Storage Location', 'Barcode', 'QR Code', 'Actions']}
+            rows={medicineRows.map((medicine) => [
+              medicine.medicineName,
+              medicine.genericName,
+              medicine.brandName,
+              medicine.category,
+              medicine.dosageForm,
+              medicine.strength,
+              medicine.unit,
+              medicine.manufacturer,
+              suppliersById[medicine.supplierId]?.supplierName || 'Not Set',
+              formatCurrency(medicine.purchasePrice),
+              formatCurrency(medicine.sellingPrice),
+              Number(medicine.reorderLevel || 0).toLocaleString('en-IN'),
+              Number(medicine.minimumStockLevel || 0).toLocaleString('en-IN'),
+              medicine.storageLocation,
+              medicine.barcode || '-',
+              medicine.qrCode || '-',
+              <ActionCell
+                key={medicine.id}
+                actions={[
+                  { label: 'Edit', onClick: () => editRow(setMedicineForm, { ...medicine }, 'medicines') },
+                  {
+                    label: 'Delete',
+                    onClick: () =>
+                      updateAdminState(
+                        (current) => ({
+                          ...current,
+                          medicines: current.medicines.filter((item) => item.id !== medicine.id),
+                          batches: current.batches.filter((batch) => batch.medicineId !== medicine.id),
+                        }),
+                        'Deleted medicine',
+                        'Medicine Master',
+                        'Medicine deleted.',
+                      ),
+                  },
+                  {
+                    label: medicine.archived ? 'Unarchive Medicine' : 'Archive Medicine',
+                    onClick: () =>
+                      updateAdminState(
+                        (current) => ({
+                          ...current,
+                          medicines: current.medicines.map((item) =>
+                            item.id === medicine.id ? { ...item, archived: !item.archived } : item,
+                          ),
+                        }),
+                        medicine.archived ? 'Unarchived medicine' : 'Archived medicine',
+                        'Medicine Master',
+                        medicine.archived ? 'Medicine restored.' : 'Medicine archived.',
+                      ),
+                  },
+                ]}
+              />,
+            ])}
+          />
+        </PanelBlock>
+        <PanelBlock title={medicineForm.id ? 'Edit Medicine' : 'Add Medicine'}>
+          <form className="admin-form-grid wide" onSubmit={handleMedicineSubmit}>
+            <input value={medicineForm.medicineName} onChange={(event) => setMedicineForm({ ...medicineForm, medicineName: event.target.value })} placeholder="Medicine Name" required />
+            <input value={medicineForm.genericName} onChange={(event) => setMedicineForm({ ...medicineForm, genericName: event.target.value })} placeholder="Generic Name" required />
+            <input value={medicineForm.brandName} onChange={(event) => setMedicineForm({ ...medicineForm, brandName: event.target.value })} placeholder="Brand Name" />
+            <input value={medicineForm.category} onChange={(event) => setMedicineForm({ ...medicineForm, category: event.target.value })} placeholder="Category" />
+            <input value={medicineForm.dosageForm} onChange={(event) => setMedicineForm({ ...medicineForm, dosageForm: event.target.value })} placeholder="Dosage Form" required />
+            <input value={medicineForm.strength} onChange={(event) => setMedicineForm({ ...medicineForm, strength: event.target.value })} placeholder="Strength" required />
+            <input value={medicineForm.unit} onChange={(event) => setMedicineForm({ ...medicineForm, unit: event.target.value })} placeholder="Unit" />
+            <input value={medicineForm.manufacturer} onChange={(event) => setMedicineForm({ ...medicineForm, manufacturer: event.target.value })} placeholder="Manufacturer" />
+            <select value={medicineForm.supplierId} onChange={(event) => setMedicineForm({ ...medicineForm, supplierId: event.target.value })}>
+              <option value="">Supplier</option>
+              {adminState.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.supplierName}</option>)}
+            </select>
+            <input type="number" min="0" value={medicineForm.purchasePrice} onChange={(event) => setMedicineForm({ ...medicineForm, purchasePrice: event.target.value })} placeholder="Purchase Price" />
+            <input type="number" min="0" value={medicineForm.sellingPrice} onChange={(event) => setMedicineForm({ ...medicineForm, sellingPrice: event.target.value })} placeholder="Selling Price" />
+            <input type="number" min="0" value={medicineForm.reorderLevel} onChange={(event) => setMedicineForm({ ...medicineForm, reorderLevel: event.target.value })} placeholder="Reorder Level" />
+            <input type="number" min="0" value={medicineForm.minimumStockLevel} onChange={(event) => setMedicineForm({ ...medicineForm, minimumStockLevel: event.target.value })} placeholder="Minimum Stock Level" />
+            <input value={medicineForm.storageLocation} onChange={(event) => setMedicineForm({ ...medicineForm, storageLocation: event.target.value })} placeholder="Storage Location" />
+            <input value={medicineForm.barcode} onChange={(event) => setMedicineForm({ ...medicineForm, barcode: event.target.value })} placeholder="Barcode" />
+            <input value={medicineForm.qrCode} onChange={(event) => setMedicineForm({ ...medicineForm, qrCode: event.target.value })} placeholder="QR Code" />
+            <div className="admin-actions">
+              <button type="submit" className="primary-button">{medicineForm.id ? 'Edit Medicine' : 'Add Medicine'}</button>
+              <button type="button" className="ghost-button" onClick={resetMedicineForm}>Reset</button>
+            </div>
+          </form>
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderImportsSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Bulk Import">
+          <textarea className="admin-textarea" value={bulkImportText} onChange={(event) => setBulkImportText(event.target.value)} placeholder="Paracetamol 500mg|Tablet|1500" />
+          <div className="admin-actions">
+            <button type="button" className="primary-button" onClick={handleBulkImport}>Run Import</button>
+            <button type="button" className="ghost-button" onClick={() => setBulkImportText('')}>Clear</button>
+          </div>
+        </PanelBlock>
+        <PanelBlock title="Import Summary">
+          <AdminTable columns={['Total Imported', 'Updated Records', 'New Medicines', 'Duplicate Records', 'Failed Records']} rows={[[adminState.importSummary.totalImported, adminState.importSummary.updatedRecords, adminState.importSummary.newMedicines, adminState.importSummary.duplicateRecords, adminState.importSummary.failedRecords]]} />
+          <textarea className="admin-textarea compact" value={adminState.importSummary.failedLines.join('\n')} readOnly placeholder="Invalid records" />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderStockSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Stock Management">
+          <AdminTable
+            columns={['Medicine Name', 'Strength', 'Form', 'Current Stock', 'Reorder Level', 'Batch Count', 'Expiry Status', 'Stock Status', 'Actions']}
+            rows={adminState.medicines.map((medicine) => {
+              const currentStock = getCurrentStock(medicine.id, adminState.batches)
+              const batchCount = getActiveBatches(medicine.id, adminState.batches).length
+              return [
+                medicine.medicineName,
+                medicine.strength,
+                medicine.dosageForm,
+                currentStock.toLocaleString('en-IN'),
+                Number(medicine.reorderLevel || 0).toLocaleString('en-IN'),
+                batchCount.toLocaleString('en-IN'),
+                getExpiryStatus(medicine.id, adminState.batches),
+                getStockStatus(currentStock, medicine.reorderLevel, medicine.minimumStockLevel),
+                <ActionCell
+                  key={medicine.id}
+                  actions={[
+                    { label: 'Add Stock', onClick: () => setStockActionForm({ ...initialStockActionForm, medicineId: medicine.id, action: 'Add Stock' }) },
+                    { label: 'Remove Stock', onClick: () => setStockActionForm({ ...initialStockActionForm, medicineId: medicine.id, action: 'Remove Stock' }) },
+                    { label: 'Transfer Stock', onClick: () => setStockActionForm({ ...initialStockActionForm, medicineId: medicine.id, action: 'Transfer Stock' }) },
+                    { label: 'Adjust Stock', onClick: () => setStockActionForm({ ...initialStockActionForm, medicineId: medicine.id, action: 'Adjust Stock' }) },
+                    { label: 'Update Stock', onClick: () => setStockActionForm({ ...initialStockActionForm, medicineId: medicine.id, action: 'Update Stock' }) },
+                    { label: 'Reconcile Stock', onClick: () => setStockActionForm({ ...initialStockActionForm, medicineId: medicine.id, action: 'Reconcile Stock' }) },
+                  ]}
+                />,
+              ]
+            })}
+          />
+        </PanelBlock>
+        <PanelBlock title="Stock Action">
+          <form className="admin-form-grid" onSubmit={(event) => { event.preventDefault(); applyStockAction() }}>
+            <select value={stockActionForm.medicineId} onChange={(event) => setStockActionForm({ ...stockActionForm, medicineId: event.target.value })} required>
+              <option value="">Medicine</option>
+              {adminState.medicines.map((medicine) => <option key={medicine.id} value={medicine.id}>{medicine.medicineName} {medicine.strength}</option>)}
+            </select>
+            <select value={stockActionForm.action} onChange={(event) => setStockActionForm({ ...stockActionForm, action: event.target.value })}>
+              <option>Add Stock</option><option>Remove Stock</option><option>Transfer Stock</option><option>Adjust Stock</option><option>Update Stock</option><option>Reconcile Stock</option>
+            </select>
+            <input type="number" min="0" value={stockActionForm.quantity} onChange={(event) => setStockActionForm({ ...stockActionForm, quantity: event.target.value })} placeholder="Quantity" required />
+            <input value={stockActionForm.batchNumber} onChange={(event) => setStockActionForm({ ...stockActionForm, batchNumber: event.target.value })} placeholder="Batch Number" />
+            <input type="date" value={stockActionForm.expiryDate} onChange={(event) => setStockActionForm({ ...stockActionForm, expiryDate: event.target.value })} />
+            <input value={stockActionForm.note} onChange={(event) => setStockActionForm({ ...stockActionForm, note: event.target.value })} placeholder="Transfer Location / Note" />
+            <div className="admin-actions">
+              <button type="submit" className="primary-button">{stockActionForm.action}</button>
+              <button type="button" className="ghost-button" onClick={resetStockActionForm}>Reset</button>
+            </div>
+          </form>
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderBatchesSection() {
+    return (
+      <div className="admin-section-shell">
+        <div className="admin-grid two-column">
+          <PanelBlock title={batchForm.id ? 'Edit Batch' : 'Add Batch'}>
+            <form className="admin-form-grid" onSubmit={handleBatchSubmit}>
+              <select value={batchForm.medicineId} onChange={(event) => setBatchForm({ ...batchForm, medicineId: event.target.value })} required>
+                <option value="">Medicine</option>
+                {adminState.medicines.map((medicine) => <option key={medicine.id} value={medicine.id}>{medicine.medicineName} {medicine.strength}</option>)}
+              </select>
+              <input value={batchForm.batchNumber} onChange={(event) => setBatchForm({ ...batchForm, batchNumber: event.target.value })} placeholder="Batch Number" required />
+              <input type="date" value={batchForm.manufacturingDate} onChange={(event) => setBatchForm({ ...batchForm, manufacturingDate: event.target.value })} required />
+              <input type="date" value={batchForm.expiryDate} onChange={(event) => setBatchForm({ ...batchForm, expiryDate: event.target.value })} required />
+              <input type="number" min="0" value={batchForm.purchaseCost} onChange={(event) => setBatchForm({ ...batchForm, purchaseCost: event.target.value })} placeholder="Purchase Cost" required />
+              <input type="number" min="0" value={batchForm.quantityReceived} onChange={(event) => setBatchForm({ ...batchForm, quantityReceived: event.target.value })} placeholder="Quantity Received" required />
+              <input type="number" min="0" value={batchForm.quantityAvailable} onChange={(event) => setBatchForm({ ...batchForm, quantityAvailable: event.target.value })} placeholder="Quantity Available" required />
+              <div className="admin-actions"><button type="submit" className="primary-button">{batchForm.id ? 'Edit Batch' : 'Add Batch'}</button><button type="button" className="ghost-button" onClick={resetBatchForm}>Reset</button></div>
+            </form>
+          </PanelBlock>
+          <PanelBlock title="Batch History">
+            {selectedBatch ? (
+              <div className="admin-history-box"><strong>{selectedBatch.batchNumber}</strong><ul className="plain-list">{selectedBatch.history.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            ) : <div className="admin-placeholder-text">Select a batch to view history.</div>}
+          </PanelBlock>
+        </div>
+        <PanelBlock title="Batch Records">
+          <AdminTable
+            columns={['Medicine', 'Batch Number', 'Manufacturing Date', 'Expiry Date', 'Purchase Cost', 'Quantity Received', 'Quantity Available', 'Actions']}
+            rows={adminState.batches.map((batch) => [
+              medicinesById[batch.medicineId]?.medicineName || 'Unknown',
+              batch.batchNumber,
+              batch.manufacturingDate,
+              batch.expiryDate,
+              formatCurrency(batch.purchaseCost),
+              Number(batch.quantityReceived || 0).toLocaleString('en-IN'),
+              Number(batch.quantityAvailable || 0).toLocaleString('en-IN'),
+              <ActionCell key={batch.id} actions={[
+                { label: 'Edit', onClick: () => editRow(setBatchForm, { ...batch }, 'batches') },
+                { label: 'Remove Batch', onClick: () => updateAdminState((current) => ({ ...current, batches: current.batches.filter((item) => item.id !== batch.id) }), 'Removed batch', 'Batch Management', 'Batch removed.') },
+                { label: 'View Batch History', onClick: () => setSelectedBatchId(batch.id) },
+              ]} />,
+            ])}
+          />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderExpirySection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Expiry Management">
+          <div className="admin-filter-row">
+            <select value={expiryView} onChange={(event) => setExpiryView(event.target.value)}>
+              <option value="30">Expiring Within 30 Days</option><option value="60">Expiring Within 60 Days</option><option value="90">Expiring Within 90 Days</option><option value="expired">Expired Medicines</option>
+            </select>
+            <button type="button" className="ghost-button" onClick={() => downloadTextFile(`expiry-report-${Date.now()}.txt`, filteredExpiryBatches.map((batch) => `${medicinesById[batch.medicineId]?.medicineName || 'Unknown'}|${batch.batchNumber}|${batch.expiryDate}|${batch.quantityAvailable}`).join('\n'))}>Generate Expiry Report</button>
+          </div>
+          <AdminTable
+            columns={['Medicine', 'Batch Number', 'Expiry Date', 'Quantity', 'Status', 'Actions']}
+            rows={filteredExpiryBatches.map((batch) => [
+              medicinesById[batch.medicineId]?.medicineName || 'Unknown',
+              batch.batchNumber,
+              batch.expiryDate,
+              Number(batch.quantityAvailable || 0).toLocaleString('en-IN'),
+              getExpiryStatus(batch.medicineId, [batch]),
+              <ActionCell key={batch.id} actions={[
+                { label: 'Mark Disposed', onClick: () => updateAdminState((current) => ({ ...current, batches: current.batches.map((item) => item.id === batch.id ? { ...item, disposed: true, quantityAvailable: 0 } : item) }), 'Marked batch disposed', 'Expiry Management', 'Batch marked disposed.') },
+                { label: 'Archive Batch', onClick: () => updateAdminState((current) => ({ ...current, batches: current.batches.map((item) => item.id === batch.id ? { ...item, archived: true } : item) }), 'Archived batch', 'Expiry Management', 'Batch archived.') },
+              ]} />,
+            ])}
+          />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderSuppliersSection() {
+    const supplierPurchaseRows = selectedSupplier ? adminState.purchases.filter((purchase) => purchase.supplierId === selectedSupplier.id) : []
+    return (
+      <div className="admin-section-shell">
+        <div className="admin-grid two-column">
+          <PanelBlock title={supplierForm.id ? 'Edit Supplier' : 'Add Supplier'}>
+            <form className="admin-form-grid" onSubmit={handleSupplierSubmit}>
+              <input value={supplierForm.supplierName} onChange={(event) => setSupplierForm({ ...supplierForm, supplierName: event.target.value })} placeholder="Supplier Name" required />
+              <input value={supplierForm.contactPerson} onChange={(event) => setSupplierForm({ ...supplierForm, contactPerson: event.target.value })} placeholder="Contact Person" required />
+              <input value={supplierForm.email} onChange={(event) => setSupplierForm({ ...supplierForm, email: event.target.value })} placeholder="Email" required />
+              <input value={supplierForm.phone} onChange={(event) => setSupplierForm({ ...supplierForm, phone: event.target.value })} placeholder="Phone" required />
+              <textarea className="admin-textarea compact" value={supplierForm.address} onChange={(event) => setSupplierForm({ ...supplierForm, address: event.target.value })} placeholder="Address" />
+              <div className="admin-actions"><button type="submit" className="primary-button">{supplierForm.id ? 'Edit Supplier' : 'Add Supplier'}</button><button type="button" className="ghost-button" onClick={resetSupplierForm}>Reset</button></div>
+            </form>
+          </PanelBlock>
+          <PanelBlock title="Purchase History">
+            {selectedSupplier ? <AdminTable columns={['Purchase Order Number', 'Purchase Date', 'Total Amount', 'Status']} rows={supplierPurchaseRows.map((purchase) => [purchase.purchaseOrderNumber, purchase.purchaseDate, formatCurrency(purchase.totalAmount), purchase.status])} /> : <div className="admin-placeholder-text">Select a supplier to view purchase history.</div>}
+          </PanelBlock>
+        </div>
+        <PanelBlock title="Supplier Records">
+          <AdminTable
+            columns={['Supplier Name', 'Contact Person', 'Email', 'Phone', 'Address', 'Actions']}
+            rows={adminState.suppliers.map((supplier) => [
+              supplier.supplierName,
+              supplier.contactPerson,
+              supplier.email,
+              supplier.phone,
+              supplier.address,
+              <ActionCell key={supplier.id} actions={[
+                { label: 'Edit', onClick: () => editRow(setSupplierForm, { ...supplier }, 'suppliers') },
+                { label: 'Delete Supplier', onClick: () => updateAdminState((current) => ({ ...current, suppliers: current.suppliers.filter((item) => item.id !== supplier.id) }), 'Deleted supplier', 'Suppliers', 'Supplier deleted.') },
+                { label: 'View Purchase History', onClick: () => setSelectedSupplierId(supplier.id) },
+              ]} />,
+            ])}
+          />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderPurchasesSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title={purchaseForm.id ? 'Edit Purchase Order' : 'Create Purchase Order'}>
+          <form className="admin-form-grid wide" onSubmit={handlePurchaseSubmit}>
+            <input value={purchaseForm.purchaseOrderNumber} onChange={(event) => setPurchaseForm({ ...purchaseForm, purchaseOrderNumber: event.target.value })} placeholder="Purchase Order Number" required />
+            <select value={purchaseForm.supplierId} onChange={(event) => setPurchaseForm({ ...purchaseForm, supplierId: event.target.value })} required><option value="">Supplier</option>{adminState.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.supplierName}</option>)}</select>
+            <input type="date" value={purchaseForm.purchaseDate} onChange={(event) => setPurchaseForm({ ...purchaseForm, purchaseDate: event.target.value })} required />
+            <input type="number" min="0" value={purchaseForm.totalAmount} onChange={(event) => setPurchaseForm({ ...purchaseForm, totalAmount: event.target.value })} placeholder="Total Amount" required />
+            <select value={purchaseForm.status} onChange={(event) => setPurchaseForm({ ...purchaseForm, status: event.target.value })}><option>Draft</option><option>Created</option><option>Received</option><option>Invoiced</option><option>Cancelled</option></select>
+            <textarea className="admin-textarea" value={purchaseForm.itemsText} onChange={(event) => setPurchaseForm({ ...purchaseForm, itemsText: event.target.value })} placeholder="Medicine|Strength|Form|Quantity|Cost" />
+            <div className="admin-actions"><button type="submit" className="primary-button">{purchaseForm.id ? 'Edit Purchase Order' : 'Create Purchase Order'}</button><button type="button" className="ghost-button" onClick={resetPurchaseForm}>Reset</button></div>
+          </form>
+        </PanelBlock>
+        <PanelBlock title="Purchase Records">
+          <AdminTable
+            columns={['Purchase Order Number', 'Supplier', 'Purchase Date', 'Total Amount', 'Status', 'Actions']}
+            rows={adminState.purchases.map((purchase) => [
+              purchase.purchaseOrderNumber,
+              suppliersById[purchase.supplierId]?.supplierName || 'Unknown',
+              purchase.purchaseDate,
+              formatCurrency(purchase.totalAmount),
+              purchase.status,
+              <ActionCell key={purchase.id} actions={[
+                { label: 'Edit', onClick: () => editRow(setPurchaseForm, { ...purchase }, 'purchases') },
+                { label: 'Receive Stock', onClick: () => handleReceivePurchase(purchase.id) },
+                { label: 'Record Invoice', onClick: () => updateAdminState((current) => ({ ...current, purchases: current.purchases.map((item) => item.id === purchase.id ? { ...item, status: 'Invoiced' } : item) }), 'Recorded purchase invoice', 'Purchases', 'Purchase invoice recorded.') },
+                { label: 'Cancel Purchase', onClick: () => updateAdminState((current) => ({ ...current, purchases: current.purchases.map((item) => item.id === purchase.id ? { ...item, status: 'Cancelled' } : item) }), 'Cancelled purchase order', 'Purchases', 'Purchase order cancelled.') },
+              ]} />,
+            ])}
+          />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderPrescriptionsSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Inventory Medicine Search">
+          <div className="admin-filter-row"><input value={prescriptionQuery} onChange={(event) => setPrescriptionQuery(event.target.value)} placeholder="Search medicines for prescription workflows" /></div>
+          <AdminTable
+            columns={['Medicine Name', 'Strength', 'Form', 'Available Stock', 'Reorder Status', 'Actions']}
+            rows={searchablePrescriptionMedicines.map((medicine) => {
+              const availableStock = getAvailableStock(medicine.id, adminState.batches, adminState.prescriptions)
+              return [
+                medicine.medicineName,
+                medicine.strength,
+                medicine.dosageForm,
+                availableStock.toLocaleString('en-IN'),
+                getStockStatus(availableStock, medicine.reorderLevel, medicine.minimumStockLevel),
+                <ActionCell key={medicine.id} actions={[{ label: 'Select Medicine', onClick: () => setPrescriptionForm({ ...prescriptionForm, medicineId: medicine.id }) }]} />,
+              ]
+            })}
+          />
+        </PanelBlock>
+        <PanelBlock title="Prescription Integration">
+          <form className="admin-form-grid wide" onSubmit={handlePrescriptionSubmit}>
+            <input value={prescriptionForm.patientName} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, patientName: event.target.value })} placeholder="Patient" required />
+            <input value={prescriptionForm.doctorName} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, doctorName: event.target.value })} placeholder="Doctor" required />
+            <select value={prescriptionForm.medicineId} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, medicineId: event.target.value })} required><option value="">Medicine</option>{adminState.medicines.map((medicine) => <option key={medicine.id} value={medicine.id}>{medicine.medicineName} {medicine.strength} {medicine.dosageForm}</option>)}</select>
+            <input value={prescriptionForm.dosage} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, dosage: event.target.value })} placeholder="Dosage" required />
+            <input value={prescriptionForm.frequency} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, frequency: event.target.value })} placeholder="Frequency" required />
+            <input value={prescriptionForm.duration} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, duration: event.target.value })} placeholder="Duration" required />
+            <input type="number" min="1" value={prescriptionForm.quantity} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, quantity: event.target.value })} placeholder="Quantity" required />
+            <input value={prescriptionForm.route} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, route: event.target.value })} placeholder="Route" required />
+            <textarea className="admin-textarea compact" value={prescriptionForm.instructions} onChange={(event) => setPrescriptionForm({ ...prescriptionForm, instructions: event.target.value })} placeholder="Instructions" />
+            <div className="admin-actions"><button type="submit" className="primary-button">Create Prescription</button><button type="button" className="ghost-button" onClick={resetPrescriptionForm}>Reset</button></div>
+          </form>
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderDispensingSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Dispensing">
+          <form className="admin-form-grid" onSubmit={handleDispenseSubmit}>
+            <select value={dispenseForm.prescriptionId} onChange={(event) => setDispenseForm({ ...dispenseForm, prescriptionId: event.target.value })} required>
+              <option value="">Prescription</option>
+              {adminState.prescriptions.map((prescription) => <option key={prescription.id} value={prescription.id}>{prescription.patientName} - {prescription.medicineName}</option>)}
+            </select>
+            <select value={dispenseForm.action} onChange={(event) => setDispenseForm({ ...dispenseForm, action: event.target.value })}><option>Dispense Medicine</option><option>Partial Dispense</option><option>Complete Dispense</option><option>Cancel Dispense</option></select>
+            <input type="number" min="0" value={dispenseForm.quantity} onChange={(event) => setDispenseForm({ ...dispenseForm, quantity: event.target.value })} placeholder="Quantity" />
+            <div className="admin-actions"><button type="submit" className="primary-button">{dispenseForm.action}</button></div>
+          </form>
+          <AdminTable columns={['Patient', 'Medicine', 'Quantity', 'Dispensed', 'Status', 'Created At']} rows={adminState.prescriptions.map((prescription) => [prescription.patientName, `${prescription.medicineName} ${prescription.strength}`, Number(prescription.quantity || 0).toLocaleString('en-IN'), Number(prescription.dispensedQuantity || 0).toLocaleString('en-IN'), prescription.status, prescription.createdAt ? formatDateTime(prescription.createdAt) : '-'])} />
+          <AdminTable columns={['Prescription', 'Medicine', 'Quantity', 'Action', 'Timestamp']} rows={adminState.dispenses.map((dispense) => [dispense.prescriptionId, medicinesById[dispense.medicineId]?.medicineName || 'Unknown', Number(dispense.quantity || 0).toLocaleString('en-IN'), dispense.status, formatDateTime(dispense.timestamp)])} />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderFeaturesSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Feature Controls">
+          {adminState.organizations.map((organization) => (
+            <div key={organization.id} className="admin-feature-block">
+              <strong>{organization.organizationName}</strong>
+              <div className="admin-toggle-grid">
+                {organizationFeatureKeys.map((feature) => (
+                  <label key={`${organization.id}-${feature}`} className="admin-toggle-item">
+                    <input type="checkbox" checked={Boolean(organization.featureToggles?.[feature])} onChange={(event) => setFeatureToggle(organization.id, feature, event.target.checked)} />
+                    <span>{feature}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderUsersSection() {
+    return (
+      <div className="admin-section-shell">
+        <div className="admin-grid two-column">
+          <PanelBlock title={userForm.id ? 'Edit User' : 'Create User'}>
+            <form className="admin-form-grid" onSubmit={handleUserSubmit}>
+              <input value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} placeholder="Name" required />
+              <input value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} placeholder="Email" required />
+              <input value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })} placeholder="Role" required />
+              <select value={userForm.status} onChange={(event) => setUserForm({ ...userForm, status: event.target.value })}><option>Active</option><option>Disabled</option><option>Inactive</option></select>
+              <div className="admin-actions"><button type="submit" className="primary-button">{userForm.id ? 'Edit User' : 'Create User'}</button><button type="button" className="ghost-button" onClick={resetUserForm}>Reset</button></div>
+            </form>
+          </PanelBlock>
+          <PanelBlock title="User Records">
+            <AdminTable columns={['Name', 'Email', 'Role', 'Status', 'Actions']} rows={adminState.users.map((user) => [user.name, user.email, user.role, user.status, <ActionCell key={user.id} actions={[
+              { label: 'Edit', onClick: () => editRow(setUserForm, { ...user }, 'users') },
+              { label: 'Disable User', onClick: () => updateAdminState((current) => ({ ...current, users: current.users.map((item) => item.id === user.id ? { ...item, status: 'Disabled' } : item) }), 'Disabled user', 'User Management', 'User disabled.') },
+              { label: 'Reset Password', onClick: () => updateAdminState((current) => current, 'Reset user password', 'User Management', 'Password reset recorded.') },
+            ]} />])} />
+          </PanelBlock>
+        </div>
+      </div>
+    )
+  }
+
+  function renderAuditSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="Audit Logs">
+          <div className="admin-filter-row">
+            <input value={auditFilters.user} onChange={(event) => setAuditFilters({ ...auditFilters, user: event.target.value })} placeholder="User" />
+            <input value={auditFilters.module} onChange={(event) => setAuditFilters({ ...auditFilters, module: event.target.value })} placeholder="Module" />
+            <input type="date" value={auditFilters.from} onChange={(event) => setAuditFilters({ ...auditFilters, from: event.target.value })} />
+            <input type="date" value={auditFilters.to} onChange={(event) => setAuditFilters({ ...auditFilters, to: event.target.value })} />
+          </div>
+          <AdminTable columns={['User', 'Action', 'Module', 'Timestamp', 'IP Address']} rows={filteredAuditLogs.map((log) => [log.user, log.action, log.module, formatDateTime(log.timestamp), log.ipAddress])} />
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderSettingsSection() {
+    return (
+      <div className="admin-section-shell">
+        <PanelBlock title="System Settings">
+          <form className="admin-form-grid" onSubmit={handleSettingsSubmit}>
+            <input value={settingsForm.platformName} onChange={(event) => setSettingsForm({ ...settingsForm, platformName: event.target.value })} placeholder="Platform Name" required />
+            <input value={settingsForm.supportEmail} onChange={(event) => setSettingsForm({ ...settingsForm, supportEmail: event.target.value })} placeholder="Support Email" required />
+            <input type="number" min="0" value={settingsForm.trialDuration} onChange={(event) => setSettingsForm({ ...settingsForm, trialDuration: event.target.value })} placeholder="Trial Duration" required />
+            <input type="number" min="0" value={settingsForm.defaultUserLimit} onChange={(event) => setSettingsForm({ ...settingsForm, defaultUserLimit: event.target.value })} placeholder="Default User Limit" required />
+            <input type="number" min="0" value={settingsForm.defaultStorageLimit} onChange={(event) => setSettingsForm({ ...settingsForm, defaultStorageLimit: event.target.value })} placeholder="Default Storage Limit" required />
+            <div className="admin-actions"><button type="submit" className="primary-button">Save Settings</button></div>
+          </form>
+        </PanelBlock>
+      </div>
+    )
+  }
+
+  function renderSection() {
+    switch (activeSection) {
+      case 'organizations': return renderOrganizationsSection()
+      case 'subscriptions': return renderSubscriptionsSection()
+      case 'plans': return renderPlansSection()
+      case 'contracts': return renderContractsSection()
+      case 'medicines': return renderMedicinesSection()
+      case 'imports': return renderImportsSection()
+      case 'stock': return renderStockSection()
+      case 'batches': return renderBatchesSection()
+      case 'expiry': return renderExpirySection()
+      case 'suppliers': return renderSuppliersSection()
+      case 'purchases': return renderPurchasesSection()
+      case 'prescriptions': return renderPrescriptionsSection()
+      case 'dispensing': return renderDispensingSection()
+      case 'features': return renderFeaturesSection()
+      case 'users': return renderUsersSection()
+      case 'audit': return renderAuditSection()
+      case 'settings': return renderSettingsSection()
+      default: return renderOrganizationsSection()
+    }
+  }
+
   return (
     <div className="admin-console">
       <div className="admin-section-tabs">
@@ -2014,11 +2498,64 @@ function PlatformAdminConsole({ onActionFeedback }) {
           </button>
         ))}
       </div>
-      <div className="panel">
-        <div className="admin-placeholder-text">
-          Platform admin operational sections are being mounted.
-        </div>
+      {renderSection()}
+    </div>
+  )
+}
+
+function PanelBlock({ title, children }) {
+  return (
+    <section className="panel admin-panel">
+      <div className="admin-panel-header">
+        <h3>{title}</h3>
       </div>
+      {children}
+    </section>
+  )
+}
+
+function AdminTable({ columns, rows }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column}>{column}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {row.map((cell, cellIndex) => (
+                <td key={`${rowIndex}-${cellIndex}`}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ActionCell({ actions }) {
+  return (
+    <div className="admin-table-actions">
+      {actions.map((action) => (
+        <button key={action.label} type="button" className="ghost-button admin-mini-button" onClick={action.onClick}>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="admin-detail-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   )
 }

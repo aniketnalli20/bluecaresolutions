@@ -5,6 +5,7 @@ import {
   resetWorkspaceData,
   updateRecord,
 } from './services/emrStore'
+import PlatformAdminConsole from './PlatformAdminConsole'
 import './App.css'
 
 const clinicalNavItems = [
@@ -523,11 +524,6 @@ function App() {
 
   const currentViewMeta = useMemo(
     () => ({
-      PlatformAdmin: {
-        eyebrow: 'Platform Control',
-        title: 'BlueCare Solutions Platform Administration',
-        text: 'Manage organizations, subscriptions, contracts, billing, compliance, and platform-wide operations from a protected super-administrator workspace.',
-      },
       Patients: {
         eyebrow: 'Patient Care',
         title: 'Patient Management',
@@ -745,75 +741,6 @@ function App() {
       },
     ],
     [profileData.performance],
-  )
-
-  const platformAdminWidgets = useMemo(
-    () => [
-      { icon: 'building', label: 'Total Organizations', value: 48, format: 'count' },
-      { icon: 'wallet', label: 'Active Subscriptions', value: 41, format: 'count' },
-      { icon: 'file', label: 'Expiring Contracts', value: 6, format: 'count' },
-      { icon: 'chart', label: 'Monthly Revenue', value: 845000, format: 'currency' },
-      { icon: 'patients', label: 'Active Users', value: 1284, format: 'count' },
-      { icon: 'pulse', label: 'Platform Health', value: 99, format: 'count' },
-      { icon: 'grid', label: 'Storage Utilization', value: 72, format: 'count' },
-      { icon: 'bell', label: 'Pending Renewals', value: 9, format: 'count' },
-    ],
-    [],
-  )
-
-  const platformAdminSections = useMemo(
-    () => [
-      'Organizations',
-      'Subscriptions',
-      'Contracts',
-      'Billing & Payments',
-      'Plan Management',
-      'Feature Controls',
-      'Platform Analytics',
-      'User Management',
-      'Audit Logs',
-      'Security Center',
-      'System Settings',
-      'Support & Tickets',
-    ],
-    [],
-  )
-
-  const platformAdminResponsibilities = useMemo(
-    () => [
-      'Manage healthcare organizations and clinic onboarding.',
-      'Create and manage subscription plans.',
-      'Configure plan limits, storage quotas, and user capacities.',
-      'Monitor subscription status, renewals, expirations, and payment history.',
-      'Manage service contracts and agreement records.',
-      'Enable or disable modules for specific organizations.',
-      'Review platform usage statistics and operational metrics.',
-      'Monitor active tenants, users, and system health.',
-      'Access audit logs and security reports.',
-      'Manage platform administrators and role permissions.',
-      'Handle billing, invoicing, and revenue tracking.',
-      'Maintain compliance and administrative records.',
-    ],
-    [],
-  )
-
-  const platformAdminActivities = useMemo(
-    () => [
-      { title: 'New clinic onboarded', detail: 'North Axis Diagnostics was provisioned with Advanced Care plan.' },
-      { title: 'Renewal confirmed', detail: 'Metro Heart Centre completed annual subscription renewal.' },
-      { title: 'Feature update applied', detail: 'ePrescription module enabled for Sunrise MultiCare.' },
-      { title: 'Billing review completed', detail: 'Three pending invoices were reconciled this morning.' },
-    ],
-    [],
-  )
-
-  const platformAdminAlerts = useMemo(
-    () => [
-      { title: 'Contract expiring soon', detail: '6 tenant contracts require renewal review within 14 days.' },
-      { title: 'Storage threshold reached', detail: '2 organizations have crossed 85% of their storage quota.' },
-      { title: 'Audit review pending', detail: 'Security report verification is due for the latest access logs.' },
-    ],
-    [],
   )
 
   const profileQuickActions = useMemo(
@@ -1085,6 +1012,17 @@ function App() {
     setAuthMode('login')
     setAuthStatusMessage('You have been signed out. Sign in again to continue.')
   }, [])
+
+  const handleAdminActionFeedback = useCallback(
+    (message, tone = 'success', playSound = true) => {
+      setStatusMessage(message)
+      pushToast(message, tone)
+      if (playSound && tone !== 'error') {
+        playMajorActionSound()
+      }
+    },
+    [playMajorActionSound, pushToast],
+  )
 
   const handleGlobalResultSelect = useCallback(
     (result) => {
@@ -1909,107 +1847,7 @@ function App() {
           )}
 
           {activeView === 'PlatformAdmin' && (
-          <section className="content-grid">
-            <Panel
-              title="BlueCare Solutions Platform Administration"
-              subtitle="This module is reserved exclusively for BlueCare Solutions platform administrators and is not accessible to clinic, hospital, doctor, receptionist, or staff accounts."
-            >
-              <div className="platform-admin-intro">
-                <div className="detail-card platform-admin-callout">
-                  <h4>Platform Administration Console</h4>
-                  <p>
-                    The Platform Administration Console is responsible for managing all tenant
-                    organizations using the BlueCare Healthcare Management System. Administrators can
-                    create, configure, suspend, activate, and monitor healthcare organizations while
-                    overseeing subscriptions, contracts, billing, feature access, and platform-wide
-                    operations.
-                  </p>
-                </div>
-
-                <div className="detail-card platform-admin-callout">
-                  <h4>Important Notice</h4>
-                  <p>
-                    This workspace is intended solely for BlueCare Solutions internal operations.
-                    Administrative actions may affect multiple healthcare organizations across the
-                    platform. All activities must be logged, auditable, and permission-controlled.
-                  </p>
-                </div>
-              </div>
-            </Panel>
-
-            <section className="top-strip compact">
-              {platformAdminWidgets.map((item) => (
-                <StatCard
-                  key={item.label}
-                  icon={item.icon}
-                  label={item.label}
-                  value={item.value}
-                  format={item.format}
-                />
-              ))}
-            </section>
-
-            <div className="dual-grid">
-              <Panel title="Core Responsibilities" subtitle="Operational controls across all organizations on the platform">
-                <ul className="plain-list platform-admin-list">
-                  {platformAdminResponsibilities.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </Panel>
-
-              <Panel title="Available Sections" subtitle="Administrative areas available to super-administrator accounts only">
-                <div className="platform-section-grid">
-                  {platformAdminSections.map((section, index) => (
-                    <article key={section} className="info-panel emphasis platform-section-card">
-                      <div className="panel-icon-row">
-                        <span className="panel-icon">
-                          <Icon name="shield" />
-                        </span>
-                        <span className="soft-pill">{index + 1}</span>
-                      </div>
-                      <h3>{section}</h3>
-                      <p>Restricted platform administration workspace section.</p>
-                    </article>
-                  ))}
-                </div>
-              </Panel>
-            </div>
-
-            <div className="dual-grid">
-              <Panel title="Recent Activities" subtitle="Recent platform-level operational updates">
-                <div className="timeline-list">
-                  {platformAdminActivities.map((activity) => (
-                    <article key={activity.title} className="timeline-item">
-                      <div className="timeline-icon">
-                        <Icon name="building" />
-                      </div>
-                      <div>
-                        <strong>{activity.title}</strong>
-                        <p>{activity.detail}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </Panel>
-
-              <Panel title="System Alerts" subtitle="Items requiring super-administrator attention">
-                <div className="timeline-list">
-                  {platformAdminAlerts.map((alert) => (
-                    <article key={alert.title} className="timeline-item">
-                      <div className="timeline-icon">
-                        <Icon name="alert" />
-                      </div>
-                      <div>
-                        <strong>{alert.title}</strong>
-                        <p>{alert.detail}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </Panel>
-            </div>
-          </section>
+          <PlatformAdminConsole onActionFeedback={handleAdminActionFeedback} />
           )}
 
           {activeView === 'Patients' && (
