@@ -39,6 +39,10 @@ const defaultAuthData = {
   password: 'BlueCare@123',
 }
 const defaultAuthData = {
+  username: 'sv kini',
+  password: 'svkini555',
+}
+const defaultAuthData = {
   username: 'navin',
   password: 'BlueCare',
 }
