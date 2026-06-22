@@ -58,7 +58,7 @@ const defaultUserProfile = {
   bio:
     'Dedicated healthcare professional committed to delivering quality patient care and supporting efficient healthcare operations through modern digital solutions.',
   personal: {
-    fullName: 'Dr. Sarah Johnson',
+    fullName: 'sv kini',
     employeeId: 'BCS-EMP-014',
     role: 'Doctor',
     department: 'Cardiology Department',
@@ -80,7 +80,7 @@ const defaultUserProfile = {
     facility: 'Main Healthcare Center',
   },
   account: {
-    username: 'dr.sarah',
+    username: 'sv kini,
     userRole: 'Administrator',
     accountStatus: 'Active',
     lastLogin: 'Today, 09:15 AM',
