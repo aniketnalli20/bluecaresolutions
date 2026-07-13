@@ -216,6 +216,7 @@ export function hydrateWorkspace(rawData) {
     currentUserId: baseData.currentUserId || baseData.users?.[0]?.id || '',
     users: (baseData.users || []).map((user) => ({
       ...user,
+      email: user.email || '',
       allowed_views:
         Array.isArray(user.allowed_views) && user.allowed_views.length
           ? user.allowed_views

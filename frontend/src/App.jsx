@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadWorkspaceData, resetWorkspaceData, saveWorkspaceData } from './services/emrStore'
+import {
+  getSupabaseSession,
+  hasSupabaseConfig,
+  onSupabaseAuthStateChange,
+  sendClinicPasswordReset,
+  signInWithClinicPassword,
+  signOutClinicUser,
+  signUpClinicUser,
+  updateClinicUserPassword,
+} from './services/supabaseClient'
 import './App.css'
 
 const navItems = [
@@ -142,6 +152,7 @@ const initialInventoryForm = {
 
 const initialUserForm = {
   name: '',
+  email: '',
   role: 'Front Desk Coordinator',
   status: 'Active',
   phone: '',
@@ -414,9 +425,34 @@ function parseCsvDate(value, fallback = '') {
   return parsed.toISOString().slice(0, 10)
 }
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getAuthFlowType() {
+  const searchParams = new URLSearchParams(window.location.search)
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  return hashParams.get('type') || searchParams.get('type') || ''
+}
+
 function App() {
   const [workspace, setWorkspace] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authSession, setAuthSession] = useState(null)
+  const [authReady, setAuthReady] = useState(!hasSupabaseConfig)
+  const [authMode, setAuthMode] = useState('sign-in')
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authNotice, setAuthNotice] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [authForm, setAuthForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    resetEmail: '',
+    nextPassword: '',
+    confirmNextPassword: '',
+  })
   const [activeView, setActiveView] = useState('Dashboard')
   const [theme, setTheme] = useState(() => localStorage.getItem('bluecare-clinic-theme') || 'light')
   const [toast, setToast] = useState(null)
@@ -446,19 +482,112 @@ function App() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState('')
 
   useEffect(() => {
-    let isCancelled = false
+    if (!hasSupabaseConfig) {
+      setAuthReady(true)
+      return undefined
+    }
 
-    async function hydrate() {
-      const data = await loadWorkspaceData()
-      if (isCancelled) {
+    let isActive = true
+
+    async function bootstrapAuth() {
+      try {
+        const session = await getSupabaseSession()
+        if (!isActive) {
+          return
+        }
+
+        setAuthSession(session)
+        if (session && getAuthFlowType() === 'recovery') {
+          setAuthMode('update-password')
+        }
+      } catch (error) {
+        if (!isActive) {
+          return
+        }
+
+        setAuthError(error instanceof Error ? error.message : 'Unable to initialize authentication.')
+      } finally {
+        if (isActive) {
+          setAuthReady(true)
+        }
+      }
+    }
+
+    bootstrapAuth()
+
+    const { data } = onSupabaseAuthStateChange((session) => {
+      if (!isActive) {
         return
       }
-      setWorkspace(data)
-      setSelectedPatientId(data.patients[0]?.id || '')
-      setSelectedConsultationId(data.opdConsultations[0]?.id || '')
-      setSelectedAdmissionId(data.ipdAdmissions[0]?.id || '')
-      setSelectedInvoiceId(data.invoices[0]?.id || '')
+
+      setAuthSession(session)
+      setAuthError('')
+
+      if (session) {
+        if (getAuthFlowType() === 'recovery') {
+          setAuthMode('update-password')
+        }
+        return
+      }
+
+      setAuthMode('sign-in')
+      setWorkspace(null)
       setLoading(false)
+      setGlobalSearchOpen(false)
+      setGlobalSearchQuery('')
+      setSelectedPatientId('')
+      setSelectedConsultationId('')
+      setSelectedAdmissionId('')
+      setSelectedInvoiceId('')
+    })
+
+    return () => {
+      isActive = false
+      data.subscription?.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authReady) {
+      return undefined
+    }
+
+    if (hasSupabaseConfig && !authSession) {
+      setLoading(false)
+      return undefined
+    }
+
+    let isCancelled = false
+    setLoading(true)
+
+    async function hydrate() {
+      try {
+        const data = await loadWorkspaceData()
+        if (isCancelled) {
+          return
+        }
+
+        setWorkspace(data)
+        setSelectedPatientId(data.patients[0]?.id || '')
+        setSelectedConsultationId(data.opdConsultations[0]?.id || '')
+        setSelectedAdmissionId(data.ipdAdmissions[0]?.id || '')
+        setSelectedInvoiceId(data.invoices[0]?.id || '')
+      } catch (error) {
+        if (isCancelled) {
+          return
+        }
+
+        const message = error instanceof Error ? error.message : 'Workspace load failed.'
+        if (hasSupabaseConfig) {
+          setAuthError(message)
+        } else {
+          setToast({ message, tone: 'error' })
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoading(false)
+        }
+      }
     }
 
     hydrate()
@@ -466,7 +595,7 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [])
+  }, [authReady, authSession?.user?.id])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -494,8 +623,8 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const persistWorkspace = useCallback((nextWorkspace, message, tone = 'success') => {
-    const saved = saveWorkspaceData(nextWorkspace)
+  const persistWorkspace = useCallback(async (nextWorkspace, message, tone = 'success') => {
+    const saved = await saveWorkspaceData(nextWorkspace)
     setWorkspace(saved)
     setToast({ message, tone })
   }, [])
@@ -516,12 +645,28 @@ function App() {
   const dashboard = workspace?.dashboard ?? emptyObject
   const clinic = workspace?.clinic ?? emptyObject
   const settings = workspace?.systemSettings ?? emptyObject
+  const sessionUser = authSession?.user ?? null
+  const sessionEmail = normalizeEmail(sessionUser?.email)
+  const authenticatedClinicUser = useMemo(() => {
+    if (!sessionUser) {
+      return null
+    }
+
+    return (
+      users.find((user) => user.auth_user_id === sessionUser.id) ||
+      users.find((user) => normalizeEmail(user.email) === sessionEmail) ||
+      null
+    )
+  }, [sessionEmail, sessionUser, users])
   const activeUser = useMemo(
-    () => users.find((user) => user.id === workspace?.currentUserId) || users.find((user) => user.status === 'Active') || users[0] || null,
-    [users, workspace?.currentUserId],
+    () =>
+      hasSupabaseConfig && authSession
+        ? authenticatedClinicUser
+        : users.find((user) => user.id === workspace?.currentUserId) || users.find((user) => user.status === 'Active') || users[0] || null,
+    [authenticatedClinicUser, authSession, users, workspace?.currentUserId],
   )
   const accessibleViewKeys = useMemo(
-    () => (activeUser ? normalizeAccessList(activeUser.allowed_views, activeUser.role) : fullAccessKeys),
+    () => (activeUser ? normalizeAccessList(activeUser.allowed_views, activeUser.role) : hasSupabaseConfig ? emptyList : fullAccessKeys),
     [activeUser],
   )
   const accessibleViewSet = useMemo(() => new Set(accessibleViewKeys), [accessibleViewKeys])
@@ -529,7 +674,72 @@ function App() {
     () => navItems.filter((item) => accessibleViewSet.has(item.key)),
     [accessibleViewSet],
   )
+  const canSwitchUsers = !hasSupabaseConfig
   const resolvedActiveView = accessibleViewSet.has(activeView) ? activeView : accessibleNavItems[0]?.key || 'Dashboard'
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !workspace || !authenticatedClinicUser) {
+      return
+    }
+
+    if (workspace.currentUserId === authenticatedClinicUser.id) {
+      return
+    }
+
+    setWorkspace((current) =>
+      current
+        ? {
+            ...current,
+            currentUserId: authenticatedClinicUser.id,
+          }
+        : current,
+    )
+  }, [authenticatedClinicUser, workspace])
+
+  useEffect(() => {
+    if (!hasSupabaseConfig || !workspace || !sessionUser || !authenticatedClinicUser) {
+      return undefined
+    }
+
+    if (authenticatedClinicUser.auth_user_id === sessionUser.id) {
+      return undefined
+    }
+
+    if (normalizeEmail(authenticatedClinicUser.email) !== sessionEmail) {
+      return undefined
+    }
+
+    let isCancelled = false
+
+    async function syncAuthenticatedUser() {
+      try {
+        const nextWorkspace = {
+          ...workspace,
+          currentUserId: authenticatedClinicUser.id,
+          users: workspace.users.map((user) =>
+            user.id === authenticatedClinicUser.id
+              ? {
+                  ...user,
+                  auth_user_id: sessionUser.id,
+                }
+              : user,
+          ),
+        }
+        const saved = await saveWorkspaceData(nextWorkspace)
+        if (!isCancelled) {
+          setWorkspace(saved)
+        }
+      } catch (error) {
+        console.error('Failed linking clinic user to authenticated account.', error)
+      }
+    }
+
+    syncAuthenticatedUser()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [authenticatedClinicUser, sessionEmail, sessionUser, workspace])
 
   const patientsById = useMemo(
     () => Object.fromEntries(patients.map((patient) => [patient.id, patient])),
@@ -587,7 +797,7 @@ function App() {
         users: {
           key: 'users',
           label: 'Users',
-          headers: 'name, role, status, phone, shift, allowed_views',
+          headers: 'name, email, role, status, phone, shift, allowed_views',
         },
         medicines: {
           key: 'medicines',
@@ -831,6 +1041,14 @@ function App() {
 
   const handleActiveUserChange = useCallback(
     (userId) => {
+      if (hasSupabaseConfig) {
+        setToast({
+          message: 'User switching is disabled while Supabase authentication is active.',
+          tone: 'error',
+        })
+        return
+      }
+
       persistWorkspace(
         {
           ...workspace,
@@ -864,6 +1082,150 @@ function App() {
     },
     [persistWorkspace, users, workspace],
   )
+
+  const handleAuthSignIn = useCallback(
+    async (event) => {
+      event.preventDefault()
+      setAuthBusy(true)
+      setAuthError('')
+      setAuthNotice('')
+
+      try {
+        await signInWithClinicPassword(normalizeEmail(authForm.email), authForm.password)
+        setAuthForm((current) => ({
+          ...current,
+          password: '',
+        }))
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Sign-in failed.')
+      } finally {
+        setAuthBusy(false)
+      }
+    },
+    [authForm.email, authForm.password],
+  )
+
+  const handleAuthSignUp = useCallback(
+    async (event) => {
+      event.preventDefault()
+      setAuthBusy(true)
+      setAuthError('')
+      setAuthNotice('')
+
+      try {
+        const email = normalizeEmail(authForm.email)
+        if (!authForm.fullName.trim()) {
+          throw new Error('Enter the full name for this clinic account.')
+        }
+        if (!email) {
+          throw new Error('Enter a valid email address.')
+        }
+        if (authForm.password.length < 8) {
+          throw new Error('Password must be at least 8 characters long.')
+        }
+        if (authForm.password !== authForm.confirmPassword) {
+          throw new Error('Password confirmation does not match.')
+        }
+
+        const { session } = await signUpClinicUser({
+          email,
+          password: authForm.password,
+          fullName: authForm.fullName.trim(),
+        })
+
+        setAuthForm((current) => ({
+          ...current,
+          password: '',
+          confirmPassword: '',
+        }))
+
+        if (session) {
+          setAuthNotice('Account created. Access will open after the matching clinic user is linked.')
+        } else {
+          setAuthMode('sign-in')
+          setAuthNotice('Account created. Check your email for the confirmation link, then sign in.')
+        }
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Account creation failed.')
+      } finally {
+        setAuthBusy(false)
+      }
+    },
+    [authForm.confirmPassword, authForm.email, authForm.fullName, authForm.password],
+  )
+
+  const handleAuthPasswordReset = useCallback(
+    async (event) => {
+      event.preventDefault()
+      setAuthBusy(true)
+      setAuthError('')
+      setAuthNotice('')
+
+      try {
+        const email = normalizeEmail(authForm.resetEmail || authForm.email)
+        if (!email) {
+          throw new Error('Enter the email address that should receive the reset link.')
+        }
+
+        await sendClinicPasswordReset(email)
+        setAuthNotice('Password reset email sent. Open the link from your inbox to set a new password.')
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Password reset request failed.')
+      } finally {
+        setAuthBusy(false)
+      }
+    },
+    [authForm.email, authForm.resetEmail],
+  )
+
+  const handleAuthPasswordUpdate = useCallback(
+    async (event) => {
+      event.preventDefault()
+      setAuthBusy(true)
+      setAuthError('')
+      setAuthNotice('')
+
+      try {
+        if (authForm.nextPassword.length < 8) {
+          throw new Error('New password must be at least 8 characters long.')
+        }
+        if (authForm.nextPassword !== authForm.confirmNextPassword) {
+          throw new Error('New password confirmation does not match.')
+        }
+
+        await updateClinicUserPassword(authForm.nextPassword)
+        window.history.replaceState({}, document.title, window.location.pathname)
+        await signOutClinicUser()
+        setAuthMode('sign-in')
+        setAuthForm((current) => ({
+          ...current,
+          nextPassword: '',
+          confirmNextPassword: '',
+          password: '',
+        }))
+        setAuthNotice('Password updated. Sign in with your new password.')
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Password update failed.')
+      } finally {
+        setAuthBusy(false)
+      }
+    },
+    [authForm.confirmNextPassword, authForm.nextPassword],
+  )
+
+  const handleSignOut = useCallback(async () => {
+    setAuthBusy(true)
+    setAuthError('')
+    setAuthNotice('')
+
+    try {
+      await signOutClinicUser()
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Sign-out failed.')
+    } finally {
+      setAuthBusy(false)
+    }
+  }, [])
 
   const handleSearchSelection = useCallback(
     (entry) => {
@@ -1212,7 +1574,9 @@ function App() {
             case 'users': {
               const importedUsers = rows.map((row, index) => ({
                 id: createRecordId(`user-import-${index}`),
+                auth_user_id: null,
                 name: getCsvValue(row, ['name'], `Imported User ${index + 1}`),
+                email: normalizeEmail(getCsvValue(row, ['email'])),
                 role: getCsvValue(row, ['role'], 'Front Desk Coordinator'),
                 status: getCsvValue(row, ['status'], 'Active'),
                 phone: getCsvValue(row, ['phone']),
@@ -1572,9 +1936,23 @@ function App() {
   const handleUserSubmit = useCallback(
     (event) => {
       event.preventDefault()
+      const email = normalizeEmail(userForm.email)
+
+      if (!email) {
+        setToast({ message: 'Enter the user email for authentication mapping.', tone: 'error' })
+        return
+      }
+
+      if (users.some((user) => normalizeEmail(user.email) === email)) {
+        setToast({ message: 'A clinic user with this email already exists.', tone: 'error' })
+        return
+      }
+
       const record = {
         id: createRecordId('user'),
+        auth_user_id: null,
         name: userForm.name,
+        email,
         role: userForm.role,
         status: userForm.status,
         phone: userForm.phone,
@@ -1585,6 +1963,7 @@ function App() {
       persistWorkspace({ ...workspace, users: [record, ...users] }, 'Clinic user added.')
       setUserForm({
         ...initialUserForm,
+        email: '',
         allowed_views: [...initialUserForm.allowed_views],
       })
     },
@@ -1737,10 +2116,10 @@ function App() {
     setToast({ message: 'Backup snapshot generated locally.', tone: 'success' })
   }, [workspace])
 
-  const handleBackupRestore = useCallback(() => {
+  const handleBackupRestore = useCallback(async () => {
     try {
       const parsed = JSON.parse(backupText)
-      const restored = saveWorkspaceData(parsed)
+      const restored = await saveWorkspaceData(parsed)
       setWorkspace(restored)
       setToast({ message: 'Backup restored successfully.', tone: 'success' })
     } catch {
@@ -1762,8 +2141,8 @@ function App() {
     window.print()
   }, [])
 
-  if (loading) {
-    return <div className="loading-screen">Loading workspace...</div>
+  if (!authReady || loading) {
+    return <div className="loading-screen">{!authReady ? 'Checking authentication...' : 'Loading workspace...'}</div>
   }
 
   function renderDashboard() {
@@ -2398,36 +2777,51 @@ function App() {
         case 'users':
           return (
             <div className="split-grid">
-              <Panel title="User Management" subtitle="Activate a clinic user and limit which modules they can use.">
+              <Panel title="User Management" subtitle="Manage clinic users, their emails, linked auth accounts, and module access.">
                 <SimpleTable
-                  columns={['Name', 'Role', 'Status', 'Phone', 'Shift', 'Access', 'Current']}
+                  columns={['Name', 'Email', 'Role', 'Status', 'Phone', 'Access', 'Auth Status']}
                   rows={users.map((user) => [
                     user.name,
+                    user.email || '-',
                     user.role,
                     user.status,
                     user.phone,
-                    user.shift,
                     `${normalizeAccessList(user.allowed_views, user.role).length} modules`,
-                    workspace?.currentUserId === user.id ? 'Active user' : '-',
+                    activeUser?.id === user.id
+                      ? 'Signed in user'
+                      : user.auth_user_id
+                        ? 'Linked'
+                        : user.email
+                          ? 'Email ready'
+                          : 'No email',
                   ])}
                 />
                 <div className="list-stack">
                   {users.map((user) => {
                     const userAccess = normalizeAccessList(user.allowed_views, user.role)
+                    const isSignedInUser = activeUser?.id === user.id
                     return (
                       <div key={user.id} className="access-card">
                         <div className="list-card-header">
                           <div>
                             <strong>{user.name}</strong>
                             <small>{user.role} | {user.status}</small>
+                            <small>{user.email || 'No authentication email assigned'}</small>
                           </div>
-                          <button
-                            type="button"
-                            className={workspace?.currentUserId === user.id ? 'chip-button active-chip' : 'chip-button'}
-                            onClick={() => handleActiveUserChange(user.id)}
-                          >
-                            {workspace?.currentUserId === user.id ? 'Active User' : 'Set Active'}
-                          </button>
+                          {canSwitchUsers ? (
+                            <button
+                              type="button"
+                              className={workspace?.currentUserId === user.id ? 'chip-button active-chip' : 'chip-button'}
+                              onClick={() => handleActiveUserChange(user.id)}
+                            >
+                              {workspace?.currentUserId === user.id ? 'Active User' : 'Set Active'}
+                            </button>
+                          ) : (
+                            <StatusPill
+                              value={isSignedInUser ? 'Signed In' : user.auth_user_id ? 'Linked' : 'Pending Link'}
+                              tone={isSignedInUser ? 'success' : user.auth_user_id ? 'primary' : 'warning'}
+                            />
+                          )}
                         </div>
                         <div className="pill-row">
                           {userAccessOptions.map((option) => (
@@ -2449,6 +2843,13 @@ function App() {
               <Panel title="Add User" subtitle="Create clinic users and assign module access at the same time.">
                 <form className="form-grid" onSubmit={handleUserSubmit}>
                   <input value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} placeholder="User name" required />
+                  <input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(event) => setUserForm({ ...userForm, email: event.target.value })}
+                    placeholder="Email used for sign-in"
+                    required
+                  />
                   <select
                     value={userForm.role}
                     onChange={(event) =>
@@ -2854,6 +3255,198 @@ function App() {
     )
   }
 
+  function renderAuthExperience() {
+    const heading =
+      authMode === 'sign-up'
+        ? 'Create clinic account'
+        : authMode === 'reset'
+          ? 'Reset password'
+          : authMode === 'update-password'
+            ? 'Set new password'
+            : 'Sign in to clinic workspace'
+    const description =
+      authMode === 'sign-up'
+        ? 'Register with the same email already assigned to your clinic user profile.'
+        : authMode === 'reset'
+          ? 'Send a password reset link to your clinic account email.'
+          : authMode === 'update-password'
+            ? 'Choose a new password for your authenticated Supabase account.'
+            : 'Use your clinic email and password to open the workspace.'
+
+    return (
+      <div className="auth-shell">
+        <section className="auth-hero">
+          <p className="eyebrow">Authentication</p>
+          <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
+          <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
+          <div className="auth-note">
+            <strong>Clinic access uses Supabase Auth.</strong>
+            <small>User permissions still come from Clinic Admin module access rules.</small>
+          </div>
+        </section>
+        <section className="panel auth-card">
+          <div className="section-intro">
+            <p className="eyebrow">Secure Access</p>
+            <h3>{heading}</h3>
+            <p>{description}</p>
+          </div>
+          {authError ? <div className="auth-banner error">{authError}</div> : null}
+          {authNotice ? <div className="auth-banner success">{authNotice}</div> : null}
+          {authMode === 'sign-in' ? (
+            <form className="auth-form" onSubmit={handleAuthSignIn}>
+              <input
+                type="email"
+                value={authForm.email}
+                onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                placeholder="Clinic email"
+                required
+              />
+              <input
+                type="password"
+                value={authForm.password}
+                onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                placeholder="Password"
+                required
+              />
+              <button type="submit" className="primary-button" disabled={authBusy}>
+                {authBusy ? 'Signing In...' : 'Sign In'}
+              </button>
+            </form>
+          ) : null}
+          {authMode === 'sign-up' ? (
+            <form className="auth-form" onSubmit={handleAuthSignUp}>
+              <input
+                value={authForm.fullName}
+                onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })}
+                placeholder="Full name"
+                required
+              />
+              <input
+                type="email"
+                value={authForm.email}
+                onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                placeholder="Clinic email"
+                required
+              />
+              <input
+                type="password"
+                value={authForm.password}
+                onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                placeholder="Password"
+                required
+              />
+              <input
+                type="password"
+                value={authForm.confirmPassword}
+                onChange={(event) => setAuthForm({ ...authForm, confirmPassword: event.target.value })}
+                placeholder="Confirm password"
+                required
+              />
+              <button type="submit" className="primary-button" disabled={authBusy}>
+                {authBusy ? 'Creating Account...' : 'Create Account'}
+              </button>
+            </form>
+          ) : null}
+          {authMode === 'reset' ? (
+            <form className="auth-form" onSubmit={handleAuthPasswordReset}>
+              <input
+                type="email"
+                value={authForm.resetEmail}
+                onChange={(event) => setAuthForm({ ...authForm, resetEmail: event.target.value })}
+                placeholder="Clinic email"
+                required
+              />
+              <button type="submit" className="primary-button" disabled={authBusy}>
+                {authBusy ? 'Sending Link...' : 'Send Reset Link'}
+              </button>
+            </form>
+          ) : null}
+          {authMode === 'update-password' ? (
+            <form className="auth-form" onSubmit={handleAuthPasswordUpdate}>
+              <input
+                type="password"
+                value={authForm.nextPassword}
+                onChange={(event) => setAuthForm({ ...authForm, nextPassword: event.target.value })}
+                placeholder="New password"
+                required
+              />
+              <input
+                type="password"
+                value={authForm.confirmNextPassword}
+                onChange={(event) => setAuthForm({ ...authForm, confirmNextPassword: event.target.value })}
+                placeholder="Confirm new password"
+                required
+              />
+              <button type="submit" className="primary-button" disabled={authBusy}>
+                {authBusy ? 'Updating Password...' : 'Update Password'}
+              </button>
+            </form>
+          ) : null}
+          <div className="auth-actions">
+            {authMode !== 'sign-in' ? (
+              <button type="button" className="ghost-button" onClick={() => setAuthMode('sign-in')}>
+                Back to Sign In
+              </button>
+            ) : null}
+            {authMode !== 'sign-up' && authMode !== 'update-password' ? (
+              <button type="button" className="ghost-button" onClick={() => setAuthMode('sign-up')}>
+                Create Account
+              </button>
+            ) : null}
+            {authMode !== 'reset' && authMode !== 'update-password' ? (
+              <button type="button" className="ghost-button" onClick={() => setAuthMode('reset')}>
+                Forgot Password
+              </button>
+            ) : null}
+          </div>
+          <small>
+            Sign up or sign in with the same email stored for your clinic user in Clinic Admin. Access remains blocked until that email is linked.
+          </small>
+        </section>
+      </div>
+    )
+  }
+
+  if (hasSupabaseConfig && !authSession) {
+    return renderAuthExperience()
+  }
+
+  if (hasSupabaseConfig && authSession && !authenticatedClinicUser) {
+    return (
+      <div className="auth-shell">
+        <section className="auth-hero">
+          <p className="eyebrow">Authenticated</p>
+          <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
+          <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
+        </section>
+        <section className="panel auth-card">
+          <div className="section-intro">
+            <p className="eyebrow">Access Pending</p>
+            <h3>Clinic user link not found</h3>
+            <p>This Supabase account is signed in, but its email is not mapped to any clinic user profile yet.</p>
+          </div>
+          {authError ? <div className="auth-banner error">{authError}</div> : null}
+          <div className="auth-note">
+            <strong>Signed-in email</strong>
+            <small>{sessionUser?.email || 'Unknown email'}</small>
+          </div>
+          <div className="auth-note">
+            <strong>What to do next</strong>
+            <small>Add this email in Clinic Admin user management, or sign in with an already assigned clinic user email.</small>
+          </div>
+          <div className="auth-actions">
+            <button type="button" className="ghost-button" onClick={handleSignOut} disabled={authBusy}>
+              {authBusy ? 'Signing Out...' : 'Sign Out'}
+            </button>
+            <button type="button" className="ghost-button" onClick={() => setAuthMode('reset')}>
+              Reset Password
+            </button>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -2886,16 +3479,18 @@ function App() {
         <header className="topbar">
           <div className="topbar-title">
             <h2>{navItems.find((item) => item.key === resolvedActiveView)?.label || 'Dashboard'}</h2>
-            <small>{activeUser ? `${activeUser.name} | ${activeUser.role}` : clinic.location}</small>
+            <small>{activeUser ? `${activeUser.name} | ${activeUser.role}${sessionUser?.email ? ` | ${sessionUser.email}` : ''}` : clinic.location}</small>
           </div>
           <div className="topbar-actions">
-            <select value={activeUser?.id || ''} onChange={(event) => handleActiveUserChange(event.target.value)}>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
+            {canSwitchUsers ? (
+              <select value={activeUser?.id || ''} onChange={(event) => handleActiveUserChange(event.target.value)}>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             {currentImportTarget ? (
               <button
                 type="button"
@@ -2909,6 +3504,11 @@ function App() {
             <button type="button" className="ghost-button" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             </button>
+            {hasSupabaseConfig ? (
+              <button type="button" className="ghost-button" onClick={handleSignOut} disabled={authBusy}>
+                {authBusy ? 'Signing Out...' : 'Sign Out'}
+              </button>
+            ) : null}
           </div>
         </header>
         {renderView()}

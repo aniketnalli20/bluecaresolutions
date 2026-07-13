@@ -57,6 +57,7 @@ function mapRows(data) {
       clinic_id: CLINIC_WORKSPACE_ID,
       auth_user_id: user.auth_user_id || null,
       name: user.name,
+      email: user.email || '',
       role: user.role,
       status: user.status,
       phone: user.phone || '',
@@ -219,6 +220,7 @@ function buildWorkspaceFromRows(rows, sessionUserId = null) {
     id: user.id,
     auth_user_id: user.auth_user_id || null,
     name: user.name,
+    email: user.email || '',
     role: user.role,
     status: user.status,
     phone: user.phone,
@@ -228,6 +230,9 @@ function buildWorkspaceFromRows(rows, sessionUserId = null) {
   const sessionLinkedUser = sessionUserId
     ? users.find((user) => user.auth_user_id === sessionUserId)
     : null
+  const emailLinkedUser = !sessionLinkedUser && rows.sessionEmail
+    ? users.find((user) => String(user.email || '').toLowerCase() === rows.sessionEmail)
+    : null
 
   return hydrateWorkspace({
     clinic: {
@@ -236,7 +241,11 @@ function buildWorkspaceFromRows(rows, sessionUserId = null) {
       contact: rows.clinic?.contact || fallbackEmrData.clinic.contact,
     },
     currentUserId:
-      sessionLinkedUser?.id || rows.clinic?.current_user_id || rows.users[0]?.id || fallbackEmrData.currentUserId,
+      sessionLinkedUser?.id ||
+      emailLinkedUser?.id ||
+      rows.clinic?.current_user_id ||
+      rows.users[0]?.id ||
+      fallbackEmrData.currentUserId,
     users,
     patients: rows.patients.map((patient) => ({
       id: patient.id,
@@ -501,6 +510,7 @@ export async function loadSupabaseWorkspaceData() {
   return buildWorkspaceFromRows(
     {
       clinic: clinicResponse.data,
+      sessionEmail: String(sessionUser?.email || '').toLowerCase(),
       settings: settingsResponse.data,
       users: usersResponse.data || [],
       patients: patientsResponse.data || [],

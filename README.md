@@ -41,9 +41,11 @@ bluecaresolutions/
 - If Vercel does not pick up a new deployment automatically, trigger a manual redeploy from the Vercel project dashboard.
 - SPA rewrites are already configured, so direct paths still resolve to the app entry correctly.
 
-## Local Data Behavior
+## Data Layer
 
-- Starter Ayurvedic demo records load automatically on first open.
-- All changes remain stored in the browser on the current device only.
-- The clinic admin panel includes local backup, restore, and demo reset support.
+- The app now supports a Supabase-backed clinic database when frontend environment variables are configured.
+- Without Supabase configuration, the app falls back to browser-local cache so the UI can still run during setup.
+- Starter Ayurvedic demo records seed automatically into the active data store on first load.
+- The clinic admin panel still includes backup, restore, and reset support.
+- Setup details are documented in [SUPABASE_SETUP.md](file:///c:/xampp/htdocs/bluecaresolutions/SUPABASE_SETUP.md).
 

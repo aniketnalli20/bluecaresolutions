@@ -15,19 +15,105 @@ export const supabase = hasSupabaseConfig
     })
   : null
 
-export async function getSupabaseSessionUser() {
+function ensureSupabaseClient() {
   if (!supabase) {
-    return null
+    throw new Error('Supabase authentication is not configured.')
   }
 
+  return supabase
+}
+
+export async function getSupabaseSession() {
+  const client = ensureSupabaseClient()
   const {
     data: { session },
     error,
-  } = await supabase.auth.getSession()
+  } = await client.auth.getSession()
 
   if (error) {
     throw error
   }
 
+  return session
+}
+
+export async function getSupabaseSessionUser() {
+  const session = await getSupabaseSession().catch(() => null)
   return session?.user ?? null
+}
+
+export function onSupabaseAuthStateChange(callback) {
+  const client = ensureSupabaseClient()
+  return client.auth.onAuthStateChange((_event, session) => {
+    callback(session)
+  })
+}
+
+export async function signInWithClinicPassword(email, password) {
+  const client = ensureSupabaseClient()
+  const { data, error } = await client.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function signUpClinicUser({ email, password, fullName }) {
+  const client = ensureSupabaseClient()
+  const { data, error } = await client.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: window.location.origin,
+      data: {
+        full_name: fullName,
+      },
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function sendClinicPasswordReset(email) {
+  const client = ensureSupabaseClient()
+  const { data, error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function updateClinicUserPassword(password) {
+  const client = ensureSupabaseClient()
+  const { data, error } = await client.auth.updateUser({
+    password,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export async function signOutClinicUser() {
+  const client = ensureSupabaseClient()
+  const { error } = await client.auth.signOut()
+
+  if (error) {
+    throw error
+  }
 }

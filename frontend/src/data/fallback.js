@@ -255,6 +255,7 @@ export function buildFallbackClinicData() {
     {
       id: 'user-1',
       name: 'Dr. Kavya Iyer',
+      email: 'kavya.iyer@svkini.clinic',
       role: 'Chief Ayurvedic Physician',
       status: 'Active',
       phone: '+91 98980 11223',
@@ -264,6 +265,7 @@ export function buildFallbackClinicData() {
     {
       id: 'user-2',
       name: 'Dr. Rohan Sharma',
+      email: 'rohan.sharma@svkini.clinic',
       role: 'Ayurvedic Consultant',
       status: 'Active',
       phone: '+91 98980 11224',
@@ -273,6 +275,7 @@ export function buildFallbackClinicData() {
     {
       id: 'user-3',
       name: 'Anjali Das',
+      email: 'anjali.das@svkini.clinic',
       role: 'Front Desk Coordinator',
       status: 'Active',
       phone: '+91 98980 11225',
