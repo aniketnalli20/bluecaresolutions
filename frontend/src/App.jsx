@@ -18,6 +18,16 @@ const navItems = [
   { key: 'Admin', label: 'Clinic Admin' },
 ]
 
+const fullAccessKeys = navItems.map((item) => item.key)
+const userAccessOptions = navItems.map(({ key, label }) => ({ key, label }))
+const roleAccessDefaults = {
+  'Chief Ayurvedic Physician': fullAccessKeys,
+  'Ayurvedic Consultant': ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'IPD', 'DiseaseMaster', 'Medicines', 'Packages', 'Billing', 'Reports', 'Notifications'],
+  'Front Desk Coordinator': ['Dashboard', 'Patients', 'VisitPlanner', 'Billing', 'Notifications'],
+  'Pharmacy Manager': ['Dashboard', 'Medicines', 'Inventory', 'Billing', 'Reports', 'Notifications'],
+  'Clinic Administrator': fullAccessKeys,
+}
+
 const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled']
 const visitTypes = ['Appointment', 'Walk-in', 'Follow-up', 'Therapy Planning']
 const genders = ['Female', 'Male', 'Other']
@@ -136,6 +146,7 @@ const initialUserForm = {
   status: 'Active',
   phone: '',
   shift: '',
+  allowed_views: roleAccessDefaults['Front Desk Coordinator'],
 }
 
 const initialSupplierForm = {
@@ -219,6 +230,19 @@ function formatDate(value) {
   }).format(new Date(value))
 }
 
+function getDefaultAccess(role) {
+  return roleAccessDefaults[role] || ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'Billing', 'Notifications']
+}
+
+function normalizeAccessList(access, role) {
+  const source = Array.isArray(access) ? access : String(access || '').split(/[|,]/)
+  const normalized = source
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .filter((item) => fullAccessKeys.includes(item))
+  return normalized.length ? Array.from(new Set(normalized)) : getDefaultAccess(role)
+}
+
 function createRecordId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
 }
@@ -229,6 +253,14 @@ function createPatientCode(patients) {
 
 function createInvoiceNumber(invoices) {
   return `INV-AYU-${String(invoices.length + 1).padStart(3, '0')}`
+}
+
+function createPurchaseOrderNumber(purchases) {
+  return `PO-AYU-${String(purchases.length + 101).padStart(3, '0')}`
+}
+
+function createQueueNumber(visits, appointmentDate) {
+  return visits.filter((visit) => visit.appointment_date === appointmentDate).length + 1
 }
 
 function daysUntil(dateValue) {
@@ -285,6 +317,103 @@ function serializePrescription(template) {
     .join('\n')
 }
 
+function normalizeCsvHeader(header) {
+  return String(header || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
+function splitCsvRow(line) {
+  const values = []
+  let current = ''
+  let inQuotes = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    if (char === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"'
+        index += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current.trim())
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  values.push(current.trim())
+  return values
+}
+
+function parseCsvText(text) {
+  const lines = String(text || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (lines.length < 2) {
+    return []
+  }
+
+  const headers = splitCsvRow(lines[0]).map(normalizeCsvHeader)
+  return lines.slice(1).map((line) => {
+    const cells = splitCsvRow(line)
+    return headers.reduce((record, header, index) => {
+      record[header] = cells[index] ?? ''
+      return record
+    }, {})
+  })
+}
+
+function getCsvValue(row, keys, fallback = '') {
+  for (const key of keys) {
+    const value = row[normalizeCsvHeader(key)]
+    if (value !== undefined && String(value).trim() !== '') {
+      return String(value).trim()
+    }
+  }
+
+  return fallback
+}
+
+function parseCsvNumber(value, fallback = 0) {
+  const numeric = Number(String(value || '').replace(/,/g, '').trim())
+  return Number.isFinite(numeric) ? numeric : fallback
+}
+
+function parseCsvList(value, separator = /[;,]/) {
+  return String(value || '')
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function parseCsvDate(value, fallback = '') {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return fallback
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) {
+    return fallback
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
 function App() {
   const [workspace, setWorkspace] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -313,6 +442,8 @@ function App() {
   const [diseaseForm, setDiseaseForm] = useState(initialDiseaseForm)
   const [settingsForm, setSettingsForm] = useState(initialSettingsForm)
   const [unitName, setUnitName] = useState('')
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('')
 
   useEffect(() => {
     let isCancelled = false
@@ -351,6 +482,18 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setGlobalSearchOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const persistWorkspace = useCallback((nextWorkspace, message, tone = 'success') => {
     const saved = saveWorkspaceData(nextWorkspace)
     setWorkspace(saved)
@@ -373,9 +516,18 @@ function App() {
   const dashboard = workspace?.dashboard ?? emptyObject
   const clinic = workspace?.clinic ?? emptyObject
   const settings = workspace?.systemSettings ?? emptyObject
+  const activeUser =
+    users.find((user) => user.id === workspace?.currentUserId) || users.find((user) => user.status === 'Active') || users[0] || null
+  const accessibleViewKeys = activeUser ? normalizeAccessList(activeUser.allowed_views, activeUser.role) : fullAccessKeys
+  const accessibleNavItems = navItems.filter((item) => accessibleViewKeys.includes(item.key))
 
   const patientsById = useMemo(
     () => Object.fromEntries(patients.map((patient) => [patient.id, patient])),
+    [patients],
+  )
+
+  const patientsByName = useMemo(
+    () => Object.fromEntries(patients.map((patient) => [String(patient.name || '').trim().toLowerCase(), patient])),
     [patients],
   )
 
@@ -419,6 +571,242 @@ function App() {
   )
 
   const doctorDirectory = clinicDoctors.length ? clinicDoctors : users
+  const currentImportTarget = useMemo(() => {
+    if (activeView === 'Admin') {
+      const adminImports = {
+        users: {
+          key: 'users',
+          label: 'Users',
+          headers: 'name, role, status, phone, shift, allowed_views',
+        },
+        medicines: {
+          key: 'medicines',
+          label: 'Medicines',
+          headers:
+            'medicine_name, category, purchase_unit, dispensing_unit, unit_conversion, batch_number, purchase_price, selling_price, current_stock, low_stock_level, expiry_date, manufacturer, supplier_name, monthly_movement',
+        },
+        diseases: {
+          key: 'diseases',
+          label: 'Disease Templates',
+          headers: 'illness, medicines_text, diet_advice, lifestyle_advice, notes',
+        },
+        suppliers: {
+          key: 'suppliers',
+          label: 'Suppliers',
+          headers: 'name, contact_person, phone, address',
+        },
+        purchases: {
+          key: 'purchases',
+          label: 'Purchases',
+          headers: 'supplier_name, purchase_date, status, total_amount, items_text',
+        },
+        packages: {
+          key: 'packages',
+          label: 'Packages',
+          headers:
+            'name, included_medicines, consultation_frequency, follow_up_schedule, therapy_sessions, panchakarma_sessions, discount, package_validity, auto_renewal_reminder',
+        },
+      }
+
+      return adminImports[activeAdminSection] || null
+    }
+
+    const viewImports = {
+      Patients: {
+        key: 'patients',
+        label: 'Patients',
+        headers:
+          'name, age, gender, contact_details, email, emergency_contact, address, occupation, past_illness_history, family_history, allergy_history, previous_ayurvedic_treatments, current_medications, follow_up_date',
+      },
+      VisitPlanner: {
+        key: 'visits',
+        label: 'Visit Planner',
+        headers: 'patient_id, patient_name, doctor_name, visit_type, appointment_date, appointment_time, status, therapy_plan, notes',
+      },
+      OPD: {
+        key: 'consultations',
+        label: 'OPD Consultations',
+        headers:
+          'patient_id, patient_name, doctor_name, consultation_date, diagnosis, symptoms, nadi_examination, ayurvedic_assessment, prescription_text, diet_recommendations, lifestyle_recommendations, panchakarma_recommendation, follow_up_date, consultation_notes, consultation_charge, medicine_charge, package_charge, panchakarma_charge, therapies_charge, payment_status',
+      },
+      IPD: {
+        key: 'admissions',
+        label: 'IPD Admissions',
+        headers:
+          'patient_id, patient_name, doctor_name, admission_date, bed_allocation, diagnosis, treatment_notes, panchakarma_schedule, medicine_administration, diet_plan, daily_progress, discharge_summary, final_invoice, status',
+      },
+      DiseaseMaster: {
+        key: 'diseases',
+        label: 'Disease Templates',
+        headers: 'illness, medicines_text, diet_advice, lifestyle_advice, notes',
+      },
+      Medicines: {
+        key: 'medicines',
+        label: 'Medicines',
+        headers:
+          'medicine_name, category, purchase_unit, dispensing_unit, unit_conversion, batch_number, purchase_price, selling_price, current_stock, low_stock_level, expiry_date, manufacturer, supplier_name, monthly_movement',
+      },
+      Packages: {
+        key: 'packages',
+        label: 'Packages',
+        headers:
+          'name, included_medicines, consultation_frequency, follow_up_schedule, therapy_sessions, panchakarma_sessions, discount, package_validity, auto_renewal_reminder',
+      },
+      Inventory: {
+        key: 'medicines',
+        label: 'Inventory Medicines',
+        headers:
+          'medicine_name, category, purchase_unit, dispensing_unit, unit_conversion, batch_number, purchase_price, selling_price, current_stock, low_stock_level, expiry_date, manufacturer, supplier_name, monthly_movement',
+      },
+      Billing: {
+        key: 'invoices',
+        label: 'Invoices',
+        headers:
+          'patient_id, patient_name, bill_type, consultation, medicines, treatment_packages, panchakarma, therapies, discount, paid_amount, payment_status, created_at',
+      },
+    }
+
+    return viewImports[activeView] || null
+  }, [activeAdminSection, activeView])
+
+  const canAccessView = useCallback((viewKey) => accessibleViewKeys.includes(viewKey), [accessibleViewKeys])
+
+  const openView = useCallback(
+    (viewKey) => {
+      if (!canAccessView(viewKey)) {
+        const targetLabel = navItems.find((item) => item.key === viewKey)?.label || viewKey
+        setToast({
+          message: `${activeUser?.name || 'Selected user'} cannot access ${targetLabel}.`,
+          tone: 'error',
+        })
+        return false
+      }
+
+      setActiveView(viewKey)
+      return true
+    },
+    [activeUser?.name, canAccessView],
+  )
+
+  const globalSearchResults = useMemo(() => {
+    const query = globalSearchQuery.trim().toLowerCase()
+    if (!query) {
+      return []
+    }
+
+    const entries = [
+      ...patients.map((patient) => ({
+        id: `patient-${patient.id}`,
+        viewKey: 'Patients',
+        label: patient.name,
+        subtitle: `${patient.patient_id} | ${patient.contact_details || 'No phone'} | Follow-up ${formatDate(patient.follow_up_date)}`,
+        keywords: [patient.name, patient.patient_id, patient.contact_details, patient.occupation, patient.past_illness_history].join(' '),
+        onSelect: () => setSelectedPatientId(patient.id),
+      })),
+      ...visits.map((visit) => ({
+        id: `visit-${visit.id}`,
+        viewKey: 'VisitPlanner',
+        label: visit.patient_name,
+        subtitle: `${visit.visit_type} | ${visit.appointment_date} ${visit.appointment_time} | ${visit.status}`,
+        keywords: [visit.patient_name, visit.doctor_name, visit.visit_type, visit.status, visit.notes].join(' '),
+      })),
+      ...consultations.map((consultation) => ({
+        id: `consultation-${consultation.id}`,
+        viewKey: 'OPD',
+        label: `${consultation.patient_name} - ${consultation.diagnosis}`,
+        subtitle: `${consultation.doctor_name} | ${formatDate(consultation.consultation_date)}`,
+        keywords: [
+          consultation.patient_name,
+          consultation.doctor_name,
+          consultation.diagnosis,
+          consultation.symptoms,
+          consultation.consultation_notes,
+        ].join(' '),
+        onSelect: () => setSelectedConsultationId(consultation.id),
+      })),
+      ...ipdAdmissions.map((admission) => ({
+        id: `admission-${admission.id}`,
+        viewKey: 'IPD',
+        label: `${admission.patient_name} - ${admission.bed_allocation}`,
+        subtitle: `${admission.status} | ${admission.doctor_name}`,
+        keywords: [admission.patient_name, admission.doctor_name, admission.diagnosis, admission.bed_allocation, admission.daily_progress].join(' '),
+        onSelect: () => setSelectedAdmissionId(admission.id),
+      })),
+      ...diseaseMaster.map((item) => ({
+        id: `disease-${item.id}`,
+        viewKey: 'DiseaseMaster',
+        label: item.illness,
+        subtitle: item.diet_advice,
+        keywords: [item.illness, item.diet_advice, item.lifestyle_advice, item.notes].join(' '),
+      })),
+      ...medicineCatalog.map((medicine) => ({
+        id: `medicine-${medicine.id}`,
+        viewKey: 'Medicines',
+        label: medicine.medicine_name,
+        subtitle: `${medicine.category} | Batch ${medicine.batch_number} | Stock ${medicine.current_stock}`,
+        keywords: [medicine.medicine_name, medicine.category, medicine.batch_number, medicine.manufacturer].join(' '),
+      })),
+      ...packages.map((item) => ({
+        id: `package-${item.id}`,
+        viewKey: 'Packages',
+        label: item.name,
+        subtitle: `${item.consultation_frequency} | Validity ${item.package_validity}`,
+        keywords: [item.name, item.consultation_frequency, item.follow_up_schedule, item.included_medicines.join(' ')].join(' '),
+      })),
+      ...invoices.map((invoice) => ({
+        id: `invoice-${invoice.id}`,
+        viewKey: 'Billing',
+        label: invoice.invoice_number,
+        subtitle: `${invoice.patient_name} | ${formatCurrency(invoice.total_amount)} | ${invoice.payment_status}`,
+        keywords: [invoice.invoice_number, invoice.patient_name, invoice.bill_type, invoice.payment_status].join(' '),
+        onSelect: () => setSelectedInvoiceId(invoice.id),
+      })),
+      ...users
+        .filter(() => canAccessView('Admin'))
+        .map((user) => ({
+          id: `user-${user.id}`,
+          viewKey: 'Admin',
+          label: user.name,
+          subtitle: `${user.role} | ${user.status}`,
+          keywords: [user.name, user.role, user.phone, user.shift].join(' '),
+          onSelect: () => setActiveAdminSection('users'),
+        })),
+      ...suppliers
+        .filter(() => canAccessView('Admin'))
+        .map((supplier) => ({
+          id: `supplier-${supplier.id}`,
+          viewKey: 'Admin',
+          label: supplier.name,
+          subtitle: `${supplier.contact_person} | ${supplier.phone}`,
+          keywords: [supplier.name, supplier.contact_person, supplier.phone, supplier.address].join(' '),
+          onSelect: () => setActiveAdminSection('suppliers'),
+        })),
+    ]
+
+    return entries
+      .filter((entry) => canAccessView(entry.viewKey))
+      .filter((entry) => `${entry.label} ${entry.subtitle} ${entry.keywords}`.toLowerCase().includes(query))
+      .slice(0, 18)
+  }, [
+    canAccessView,
+    consultations,
+    diseaseMaster,
+    globalSearchQuery,
+    invoices,
+    ipdAdmissions,
+    medicineCatalog,
+    packages,
+    patients,
+    suppliers,
+    users,
+    visits,
+  ])
+
+  useEffect(() => {
+    if (!accessibleViewKeys.includes(activeView)) {
+      setActiveView(accessibleNavItems[0]?.key || 'Dashboard')
+    }
+  }, [accessibleNavItems, accessibleViewKeys, activeView])
 
   const selectAdminSection = useCallback(
     (sectionKey) => {
@@ -438,6 +826,439 @@ function App() {
     },
     [clinic.contact, clinic.location, clinic.name, settings],
   )
+
+  const handleActiveUserChange = useCallback(
+    (userId) => {
+      persistWorkspace(
+        {
+          ...workspace,
+          currentUserId: userId,
+        },
+        'Active user updated.',
+      )
+    },
+    [persistWorkspace, workspace],
+  )
+
+  const handleUserAccessToggle = useCallback(
+    (userId, viewKey) => {
+      const nextUsers = users.map((user) => {
+        if (user.id !== userId) {
+          return user
+        }
+
+        const currentAccess = normalizeAccessList(user.allowed_views, user.role)
+        const nextAccess = currentAccess.includes(viewKey)
+          ? currentAccess.filter((item) => item !== viewKey)
+          : [...currentAccess, viewKey]
+
+        return {
+          ...user,
+          allowed_views: nextAccess.length ? nextAccess : [viewKey],
+        }
+      })
+
+      persistWorkspace({ ...workspace, users: nextUsers }, 'User access updated.')
+    },
+    [persistWorkspace, users, workspace],
+  )
+
+  const handleSearchSelection = useCallback(
+    (entry) => {
+      const opened = openView(entry.viewKey)
+      if (!opened) {
+        return
+      }
+
+      entry.onSelect?.()
+      setGlobalSearchOpen(false)
+      setGlobalSearchQuery('')
+    },
+    [openView],
+  )
+
+  const handleCsvImport = useCallback(() => {
+    if (!currentImportTarget) {
+      setToast({ message: 'CSV import is not available for this screen.', tone: 'error' })
+      return
+    }
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.csv,text/csv'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) {
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const rows = parseCsvText(String(reader.result || ''))
+          if (!rows.length) {
+            throw new Error('CSV must include a header row and at least one data row.')
+          }
+
+          const today = new Date().toISOString().slice(0, 10)
+          let nextWorkspace = workspace
+          let importedCount = 0
+
+          switch (currentImportTarget.key) {
+            case 'patients': {
+              const importedPatients = rows.map((row, index) => ({
+                id: createRecordId(`patient-import-${index}`),
+                patient_id: getCsvValue(row, ['patient_id'], createPatientCode([...patients, ...Array(index).fill(null)])),
+                name: getCsvValue(row, ['name', 'patient_name'], `Imported Patient ${index + 1}`),
+                age: parseCsvNumber(getCsvValue(row, ['age']), 0),
+                gender: getCsvValue(row, ['gender'], 'Female'),
+                contact_details: getCsvValue(row, ['contact_details', 'phone', 'contact']),
+                email: getCsvValue(row, ['email']),
+                emergency_contact: getCsvValue(row, ['emergency_contact']),
+                address: getCsvValue(row, ['address']),
+                occupation: getCsvValue(row, ['occupation']),
+                past_illness_history: getCsvValue(row, ['past_illness_history']),
+                family_history: getCsvValue(row, ['family_history']),
+                allergy_history: getCsvValue(row, ['allergy_history']),
+                previous_ayurvedic_treatments: getCsvValue(row, ['previous_ayurvedic_treatments']),
+                current_medications: getCsvValue(row, ['current_medications']),
+                follow_up_date: parseCsvDate(getCsvValue(row, ['follow_up_date']), today),
+                visit_timeline: [
+                  {
+                    date: today,
+                    title: 'Imported from CSV',
+                    detail: 'Patient profile imported into the clinic workspace.',
+                  },
+                ],
+              }))
+
+              nextWorkspace = { ...workspace, patients: [...importedPatients, ...patients] }
+              importedCount = importedPatients.length
+              if (importedPatients[0]) {
+                setSelectedPatientId(importedPatients[0].id)
+              }
+              break
+            }
+            case 'visits': {
+              const runningVisits = [...visits]
+              const importedVisits = rows.map((row, index) => {
+                const patientId = getCsvValue(row, ['patient_id'])
+                const patientName = getCsvValue(row, ['patient_name', 'name'])
+                const linkedPatient = patientsById[patientId] || patientsByName[patientName.toLowerCase()]
+                const appointmentDate = parseCsvDate(getCsvValue(row, ['appointment_date']), today)
+                const record = {
+                  id: createRecordId(`visit-import-${index}`),
+                  patient_id: linkedPatient?.id || patientId,
+                  patient_name: linkedPatient?.name || patientName || 'Walk-in Patient',
+                  doctor_name: getCsvValue(row, ['doctor_name'], doctorDirectory[0]?.name || 'Clinic Doctor'),
+                  visit_type: getCsvValue(row, ['visit_type'], 'Appointment'),
+                  appointment_date: appointmentDate,
+                  appointment_time: getCsvValue(row, ['appointment_time'], '09:00'),
+                  status: getCsvValue(row, ['status'], 'Scheduled'),
+                  therapy_plan: getCsvValue(row, ['therapy_plan']),
+                  queue_no: createQueueNumber(runningVisits, appointmentDate),
+                  notes: getCsvValue(row, ['notes']),
+                }
+                runningVisits.push(record)
+                return record
+              })
+
+              nextWorkspace = { ...workspace, visitPlanner: [...importedVisits, ...visits] }
+              importedCount = importedVisits.length
+              break
+            }
+            case 'consultations': {
+              const importedConsultations = rows.map((row, index) => {
+                const patientId = getCsvValue(row, ['patient_id'])
+                const patientName = getCsvValue(row, ['patient_name', 'name'])
+                const linkedPatient = patientsById[patientId] || patientsByName[patientName.toLowerCase()]
+                const consultation = {
+                  id: createRecordId(`opd-import-${index}`),
+                  patient_id: linkedPatient?.id || patientId || createRecordId('patient-ref'),
+                  patient_name: linkedPatient?.name || patientName || `Imported Patient ${index + 1}`,
+                  doctor_name: getCsvValue(row, ['doctor_name'], doctorDirectory[0]?.name || 'Clinic Doctor'),
+                  consultation_date: parseCsvDate(getCsvValue(row, ['consultation_date']), today),
+                  disease_template_id: '',
+                  symptoms: getCsvValue(row, ['symptoms']),
+                  nadi_examination: getCsvValue(row, ['nadi_examination']),
+                  diagnosis: getCsvValue(row, ['diagnosis'], 'Ayurvedic consultation'),
+                  ayurvedic_assessment: getCsvValue(row, ['ayurvedic_assessment']),
+                  prescription: parsePrescription(getCsvValue(row, ['prescription_text', 'prescription'])),
+                  diet_recommendations: getCsvValue(row, ['diet_recommendations']),
+                  lifestyle_recommendations: getCsvValue(row, ['lifestyle_recommendations']),
+                  panchakarma_recommendation: getCsvValue(row, ['panchakarma_recommendation']),
+                  follow_up_date: parseCsvDate(getCsvValue(row, ['follow_up_date']), today),
+                  consultation_notes: getCsvValue(row, ['consultation_notes']),
+                  billing: {
+                    consultation: parseCsvNumber(getCsvValue(row, ['consultation_charge'])),
+                    medicines: parseCsvNumber(getCsvValue(row, ['medicine_charge'])),
+                    package: parseCsvNumber(getCsvValue(row, ['package_charge'])),
+                    panchakarma: parseCsvNumber(getCsvValue(row, ['panchakarma_charge'])),
+                    therapies: parseCsvNumber(getCsvValue(row, ['therapies_charge'])),
+                    total:
+                      parseCsvNumber(getCsvValue(row, ['consultation_charge'])) +
+                      parseCsvNumber(getCsvValue(row, ['medicine_charge'])) +
+                      parseCsvNumber(getCsvValue(row, ['package_charge'])) +
+                      parseCsvNumber(getCsvValue(row, ['panchakarma_charge'])) +
+                      parseCsvNumber(getCsvValue(row, ['therapies_charge'])),
+                    payment_status: getCsvValue(row, ['payment_status'], 'Pending'),
+                  },
+                }
+                return consultation
+              })
+
+              nextWorkspace = { ...workspace, opdConsultations: [...importedConsultations, ...consultations] }
+              importedCount = importedConsultations.length
+              if (importedConsultations[0]) {
+                setSelectedConsultationId(importedConsultations[0].id)
+              }
+              break
+            }
+            case 'admissions': {
+              const importedAdmissions = rows.map((row, index) => {
+                const patientId = getCsvValue(row, ['patient_id'])
+                const patientName = getCsvValue(row, ['patient_name', 'name'])
+                const linkedPatient = patientsById[patientId] || patientsByName[patientName.toLowerCase()]
+                return {
+                  id: createRecordId(`ipd-import-${index}`),
+                  patient_id: linkedPatient?.id || patientId || createRecordId('patient-ref'),
+                  patient_name: linkedPatient?.name || patientName || `Imported Patient ${index + 1}`,
+                  doctor_name: getCsvValue(row, ['doctor_name'], doctorDirectory[0]?.name || 'Clinic Doctor'),
+                  admission_date: parseCsvDate(getCsvValue(row, ['admission_date']), today),
+                  bed_allocation: getCsvValue(row, ['bed_allocation'], `Room A | Bed ${index + 1}`),
+                  diagnosis: getCsvValue(row, ['diagnosis']),
+                  daily_treatment_chart: [
+                    {
+                      day: 'Day 1',
+                      treatment: getCsvValue(row, ['treatment_notes']),
+                      progress: getCsvValue(row, ['daily_progress']),
+                    },
+                  ],
+                  panchakarma_schedule: parseCsvList(getCsvValue(row, ['panchakarma_schedule']), /\|/),
+                  medicine_administration: parseCsvList(getCsvValue(row, ['medicine_administration']), /\|/),
+                  diet_plan: getCsvValue(row, ['diet_plan']),
+                  daily_progress: getCsvValue(row, ['daily_progress']),
+                  discharge_summary: getCsvValue(row, ['discharge_summary']),
+                  final_invoice: parseCsvNumber(getCsvValue(row, ['final_invoice'])),
+                  status: getCsvValue(row, ['status'], 'Admitted'),
+                }
+              })
+
+              nextWorkspace = { ...workspace, ipdAdmissions: [...importedAdmissions, ...ipdAdmissions] }
+              importedCount = importedAdmissions.length
+              if (importedAdmissions[0]) {
+                setSelectedAdmissionId(importedAdmissions[0].id)
+              }
+              break
+            }
+            case 'diseases': {
+              const importedDiseases = rows.map((row, index) => ({
+                id: createRecordId(`disease-import-${index}`),
+                illness: getCsvValue(row, ['illness', 'diagnosis'], `Imported Disease ${index + 1}`),
+                recommended_medicines: parsePrescription(getCsvValue(row, ['medicines_text', 'recommended_medicines', 'prescription_text'])),
+                diet_advice: getCsvValue(row, ['diet_advice']),
+                lifestyle_advice: getCsvValue(row, ['lifestyle_advice']),
+                notes: getCsvValue(row, ['notes']),
+              }))
+
+              nextWorkspace = { ...workspace, diseaseMaster: [...importedDiseases, ...diseaseMaster] }
+              importedCount = importedDiseases.length
+              break
+            }
+            case 'medicines': {
+              const importedMedicines = rows.map((row, index) => {
+                const supplierName = getCsvValue(row, ['supplier_name', 'supplier'])
+                const supplierId =
+                  getCsvValue(row, ['supplier_id']) ||
+                  suppliers.find((supplier) => supplier.name.toLowerCase() === supplierName.toLowerCase())?.id ||
+                  ''
+
+                return {
+                  id: createRecordId(`medicine-import-${index}`),
+                  medicine_name: getCsvValue(row, ['medicine_name', 'name'], `Imported Medicine ${index + 1}`),
+                  category: getCsvValue(row, ['category'], 'Classical Medicines'),
+                  purchase_unit: getCsvValue(row, ['purchase_unit'], 'Bottle'),
+                  dispensing_unit: getCsvValue(row, ['dispensing_unit'], 'Tablet'),
+                  unit_conversion: getCsvValue(row, ['unit_conversion']),
+                  batch_number: getCsvValue(row, ['batch_number'], `IMP-${index + 1}`),
+                  purchase_price: parseCsvNumber(getCsvValue(row, ['purchase_price'])),
+                  selling_price: parseCsvNumber(getCsvValue(row, ['selling_price'])),
+                  current_stock: parseCsvNumber(getCsvValue(row, ['current_stock'])),
+                  low_stock_level: parseCsvNumber(getCsvValue(row, ['low_stock_level']), Number(settings.low_stock_threshold || 0)),
+                  expiry_date: parseCsvDate(getCsvValue(row, ['expiry_date']), today),
+                  manufacturer: getCsvValue(row, ['manufacturer']),
+                  supplier_id: supplierId,
+                  monthly_movement: parseCsvNumber(getCsvValue(row, ['monthly_movement'])),
+                }
+              })
+
+              nextWorkspace = { ...workspace, medicineCatalog: [...importedMedicines, ...medicineCatalog] }
+              importedCount = importedMedicines.length
+              break
+            }
+            case 'packages': {
+              const importedPackages = rows.map((row, index) => ({
+                id: createRecordId(`package-import-${index}`),
+                name: getCsvValue(row, ['name'], `Imported Package ${index + 1}`),
+                included_medicines: parseCsvList(getCsvValue(row, ['included_medicines'])),
+                consultation_frequency: getCsvValue(row, ['consultation_frequency']),
+                follow_up_schedule: getCsvValue(row, ['follow_up_schedule']),
+                therapy_sessions: parseCsvNumber(getCsvValue(row, ['therapy_sessions'])),
+                panchakarma_sessions: parseCsvNumber(getCsvValue(row, ['panchakarma_sessions'])),
+                discount: getCsvValue(row, ['discount']),
+                package_validity: getCsvValue(row, ['package_validity']),
+                auto_renewal_reminder: parseCsvDate(getCsvValue(row, ['auto_renewal_reminder']), today),
+              }))
+
+              nextWorkspace = { ...workspace, packages: [...importedPackages, ...packages] }
+              importedCount = importedPackages.length
+              break
+            }
+            case 'suppliers': {
+              const importedSuppliers = rows.map((row, index) => ({
+                id: createRecordId(`supplier-import-${index}`),
+                name: getCsvValue(row, ['name', 'supplier_name'], `Imported Supplier ${index + 1}`),
+                contact_person: getCsvValue(row, ['contact_person']),
+                phone: getCsvValue(row, ['phone']),
+                address: getCsvValue(row, ['address']),
+              }))
+
+              nextWorkspace = { ...workspace, suppliers: [...importedSuppliers, ...suppliers] }
+              importedCount = importedSuppliers.length
+              break
+            }
+            case 'purchases': {
+              const runningPurchases = [...purchases]
+              const importedPurchases = rows.map((row, index) => {
+                const supplierName = getCsvValue(row, ['supplier_name', 'supplier'])
+                const supplierId =
+                  getCsvValue(row, ['supplier_id']) ||
+                  suppliers.find((supplier) => supplier.name.toLowerCase() === supplierName.toLowerCase())?.id ||
+                  ''
+
+                const record = {
+                  id: createRecordId(`purchase-import-${index}`),
+                  purchase_order_number: getCsvValue(row, ['purchase_order_number'], createPurchaseOrderNumber(runningPurchases)),
+                  supplier_id: supplierId,
+                  purchase_date: parseCsvDate(getCsvValue(row, ['purchase_date']), today),
+                  status: getCsvValue(row, ['status'], 'Pending Receipt'),
+                  total_amount: parseCsvNumber(getCsvValue(row, ['total_amount'])),
+                  items: getCsvValue(row, ['items_text', 'items'])
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line) => {
+                      const [medicine_name, quantity, purchase_unit, batch_number] = line.split('|').map((part) => part.trim())
+                      return {
+                        medicine_name: medicine_name || 'Ayurvedic medicine',
+                        quantity: Number(quantity || 0),
+                        purchase_unit: purchase_unit || 'Unit',
+                        batch_number: batch_number || 'NA',
+                      }
+                    }),
+                }
+                runningPurchases.push(record)
+                return record
+              })
+
+              nextWorkspace = { ...workspace, purchases: [...importedPurchases, ...purchases] }
+              importedCount = importedPurchases.length
+              break
+            }
+            case 'invoices': {
+              const runningInvoices = [...invoices]
+              const importedInvoices = rows.map((row, index) => {
+                const patientId = getCsvValue(row, ['patient_id'])
+                const patientName = getCsvValue(row, ['patient_name', 'name'])
+                const linkedPatient = patientsById[patientId] || patientsByName[patientName.toLowerCase()]
+                const totalAmount =
+                  parseCsvNumber(getCsvValue(row, ['consultation'])) +
+                  parseCsvNumber(getCsvValue(row, ['medicines'])) +
+                  parseCsvNumber(getCsvValue(row, ['treatment_packages'])) +
+                  parseCsvNumber(getCsvValue(row, ['panchakarma'])) +
+                  parseCsvNumber(getCsvValue(row, ['therapies'])) -
+                  parseCsvNumber(getCsvValue(row, ['discount']))
+
+                const record = {
+                  id: createRecordId(`invoice-import-${index}`),
+                  invoice_number: getCsvValue(row, ['invoice_number'], createInvoiceNumber(runningInvoices)),
+                  patient_id: linkedPatient?.id || patientId || createRecordId('patient-ref'),
+                  patient_name: linkedPatient?.name || patientName || `Imported Patient ${index + 1}`,
+                  bill_type: getCsvValue(row, ['bill_type'], 'Consultation'),
+                  consultation: parseCsvNumber(getCsvValue(row, ['consultation'])),
+                  medicines: parseCsvNumber(getCsvValue(row, ['medicines'])),
+                  treatment_packages: parseCsvNumber(getCsvValue(row, ['treatment_packages'])),
+                  panchakarma: parseCsvNumber(getCsvValue(row, ['panchakarma'])),
+                  therapies: parseCsvNumber(getCsvValue(row, ['therapies'])),
+                  discount: parseCsvNumber(getCsvValue(row, ['discount'])),
+                  total_amount: totalAmount,
+                  paid_amount: parseCsvNumber(getCsvValue(row, ['paid_amount'])),
+                  payment_status: getCsvValue(row, ['payment_status'], 'Pending'),
+                  created_at: parseCsvDate(getCsvValue(row, ['created_at']), today),
+                }
+                runningInvoices.push(record)
+                return record
+              })
+
+              nextWorkspace = { ...workspace, invoices: [...importedInvoices, ...invoices] }
+              importedCount = importedInvoices.length
+              if (importedInvoices[0]) {
+                setSelectedInvoiceId(importedInvoices[0].id)
+              }
+              break
+            }
+            case 'users': {
+              const importedUsers = rows.map((row, index) => ({
+                id: createRecordId(`user-import-${index}`),
+                name: getCsvValue(row, ['name'], `Imported User ${index + 1}`),
+                role: getCsvValue(row, ['role'], 'Front Desk Coordinator'),
+                status: getCsvValue(row, ['status'], 'Active'),
+                phone: getCsvValue(row, ['phone']),
+                shift: getCsvValue(row, ['shift']),
+                allowed_views: normalizeAccessList(parseCsvList(getCsvValue(row, ['allowed_views']), /\|/), getCsvValue(row, ['role'])),
+              }))
+
+              nextWorkspace = { ...workspace, users: [...importedUsers, ...users] }
+              importedCount = importedUsers.length
+              break
+            }
+            default:
+              throw new Error('Unsupported CSV import target.')
+          }
+
+          persistWorkspace(nextWorkspace, `${importedCount} ${currentImportTarget.label.toLowerCase()} imported from CSV.`)
+        } catch (error) {
+          setToast({
+            message: error instanceof Error ? error.message : 'CSV import failed.',
+            tone: 'error',
+          })
+        }
+      }
+
+      reader.readAsText(file)
+    }
+
+    input.click()
+  }, [
+    consultations,
+    currentImportTarget,
+    diseaseMaster,
+    doctorDirectory,
+    invoices,
+    ipdAdmissions,
+    medicineCatalog,
+    packages,
+    patients,
+    patientsById,
+    patientsByName,
+    persistWorkspace,
+    purchases,
+    settings.low_stock_threshold,
+    suppliers,
+    users,
+    visits,
+    workspace,
+  ])
 
   const todaysQueue = useMemo(
     () => [...(dashboard.todaysAppointments || [])].sort((left, right) => left.queue_no - right.queue_no),
@@ -479,9 +1300,9 @@ function App() {
         lifestyle_recommendations: template.lifestyle_advice,
         consultation_notes: template.notes,
       }))
-      setActiveView('OPD')
+      openView('OPD')
     },
-    [diseaseMaster],
+    [diseaseMaster, openView],
   )
 
   const handlePatientSubmit = useCallback(
@@ -519,7 +1340,7 @@ function App() {
       event.preventDefault()
       const linkedPatient = patientsById[visitForm.patient_id]
       const visitDate = visitForm.appointment_date || new Date().toISOString().slice(0, 10)
-      const queueNo = visits.filter((visit) => visit.appointment_date === visitDate).length + 1
+      const queueNo = createQueueNumber(visits, visitDate)
       const record = {
         id: createRecordId('visit'),
         patient_id: visitForm.patient_id,
@@ -756,10 +1577,14 @@ function App() {
         status: userForm.status,
         phone: userForm.phone,
         shift: userForm.shift,
+        allowed_views: normalizeAccessList(userForm.allowed_views, userForm.role),
       }
 
       persistWorkspace({ ...workspace, users: [record, ...users] }, 'Clinic user added.')
-      setUserForm(initialUserForm)
+      setUserForm({
+        ...initialUserForm,
+        allowed_views: [...initialUserForm.allowed_views],
+      })
     },
     [persistWorkspace, userForm, users, workspace],
   )
@@ -800,7 +1625,7 @@ function App() {
 
       const record = {
         id: createRecordId('purchase'),
-        purchase_order_number: `PO-AYU-${String(purchases.length + 101).padStart(3, '0')}`,
+        purchase_order_number: createPurchaseOrderNumber(purchases),
         supplier_id: purchaseForm.supplier_id,
         purchase_date: purchaseForm.purchase_date || new Date().toISOString().slice(0, 10),
         status: purchaseForm.status,
