@@ -1,6 +1,6 @@
-# BlueCare Frontend
+# S.V. Kini Ayurvedic clinic Frontend
 
-This frontend is the Vite + React client for the BlueCare clinic workspace.
+This frontend is the Vite + React client for the S.V. Kini Ayurvedic clinic workspace.
 
 ## Production URL
 
@@ -13,7 +13,7 @@ This frontend is the Vite + React client for the BlueCare clinic workspace.
 - Disease templates and prescription support
 - Medicine catalog, inventory alerts, suppliers, and purchases
 - Packages, invoices, reports, notifications, and clinic admin tools
-- Dark and light mode with BlueCare UI styling
+- Dark and light mode with clinic UI styling
 
 ## Deployment Notes
 

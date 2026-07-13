@@ -165,16 +165,33 @@ function buildNotifications(data) {
 
 function hydrateWorkspace(rawData) {
   const baseData = cloneData(rawData)
+  const fullAccess = ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'IPD', 'DiseaseMaster', 'Medicines', 'Packages', 'Inventory', 'Billing', 'Reports', 'Notifications', 'Admin']
+  const roleAccessDefaults = {
+    'Chief Ayurvedic Physician': fullAccess,
+    'Ayurvedic Consultant': ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'IPD', 'DiseaseMaster', 'Medicines', 'Packages', 'Billing', 'Reports', 'Notifications'],
+    'Front Desk Coordinator': ['Dashboard', 'Patients', 'VisitPlanner', 'Billing', 'Notifications'],
+    'Pharmacy Manager': ['Dashboard', 'Medicines', 'Inventory', 'Billing', 'Reports', 'Notifications'],
+    'Clinic Administrator': fullAccess,
+  }
   const normalizedData = {
     ...baseData,
     clinic: {
       ...baseData.clinic,
-      name: 'BlueCare',
+      name: 'S.V. Kini Ayurvedic clinic',
+      location: 'Mumbai, Maharashtra, India',
     },
+    currentUserId: baseData.currentUserId || baseData.users?.[0]?.id || '',
+    users: (baseData.users || []).map((user) => ({
+      ...user,
+      allowed_views:
+        Array.isArray(user.allowed_views) && user.allowed_views.length
+          ? user.allowed_views
+          : roleAccessDefaults[user.role] || roleAccessDefaults['Front Desk Coordinator'],
+    })),
     systemSettings: {
       ...baseData.systemSettings,
-      receipt_footer: 'BlueCare',
-      backup_note: 'Local workspace backup.',
+      receipt_footer: 'S.V. Kini Ayurvedic clinic, Mumbai, Maharashtra, India',
+      backup_note: 'Local workspace backup for S.V. Kini Ayurvedic clinic.',
     },
   }
 

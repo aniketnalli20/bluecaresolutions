@@ -160,6 +160,27 @@ textarea:focus-visible {
   align-items: flex-start;
 }
 
+.topbar-title {
+  display: grid;
+  gap: 6px;
+}
+
+.topbar-title small,
+.sidebar-card small {
+  color: var(--muted);
+}
+
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.topbar-actions select {
+  min-width: 220px;
+}
+
 .workspace h2,
 .panel h3,
 .section-intro h3 {
@@ -356,7 +377,8 @@ textarea:focus-visible {
 
 .timeline-item,
 .prescription-item,
-.warning-card {
+.warning-card,
+.access-card {
   padding: 14px 16px;
   border-radius: var(--radius-card);
   background: var(--surface-strong);
@@ -522,6 +544,35 @@ button:hover {
   gap: 10px;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.36);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 18;
+}
+
+.search-modal {
+  width: min(780px, 100%);
+  max-height: min(80vh, 760px);
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.search-results {
+  max-height: 52vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
 .active-chip {
   background: var(--primary-soft);
   color: var(--text);
@@ -663,6 +714,15 @@ tbody tr:hover {
   .panel-head {
     flex-direction: column;
   }
+
+  .topbar-actions {
+    justify-content: stretch;
+  }
+
+  .topbar-actions select,
+  .topbar-actions button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
@@ -688,7 +748,8 @@ tbody tr:hover {
   .nav-list,
   .admin-tab-row,
   .template-toolbar,
-  .pill-row {
+  .pill-row,
+  .topbar-actions {
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 4px;
@@ -698,9 +759,15 @@ tbody tr:hover {
   .chip-button,
   .info-pill,
   .status-pill,
-  .nav-button {
+  .nav-button,
+  .topbar-actions button,
+  .topbar-actions select {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .search-modal {
+    padding: 18px;
   }
 
   .table-wrap {

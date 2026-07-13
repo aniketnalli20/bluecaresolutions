@@ -516,10 +516,20 @@ function App() {
   const dashboard = workspace?.dashboard ?? emptyObject
   const clinic = workspace?.clinic ?? emptyObject
   const settings = workspace?.systemSettings ?? emptyObject
-  const activeUser =
-    users.find((user) => user.id === workspace?.currentUserId) || users.find((user) => user.status === 'Active') || users[0] || null
-  const accessibleViewKeys = activeUser ? normalizeAccessList(activeUser.allowed_views, activeUser.role) : fullAccessKeys
-  const accessibleNavItems = navItems.filter((item) => accessibleViewKeys.includes(item.key))
+  const activeUser = useMemo(
+    () => users.find((user) => user.id === workspace?.currentUserId) || users.find((user) => user.status === 'Active') || users[0] || null,
+    [users, workspace?.currentUserId],
+  )
+  const accessibleViewKeys = useMemo(
+    () => (activeUser ? normalizeAccessList(activeUser.allowed_views, activeUser.role) : fullAccessKeys),
+    [activeUser],
+  )
+  const accessibleViewSet = useMemo(() => new Set(accessibleViewKeys), [accessibleViewKeys])
+  const accessibleNavItems = useMemo(
+    () => navItems.filter((item) => accessibleViewSet.has(item.key)),
+    [accessibleViewSet],
+  )
+  const resolvedActiveView = accessibleViewSet.has(activeView) ? activeView : accessibleNavItems[0]?.key || 'Dashboard'
 
   const patientsById = useMemo(
     () => Object.fromEntries(patients.map((patient) => [patient.id, patient])),
@@ -572,7 +582,7 @@ function App() {
 
   const doctorDirectory = clinicDoctors.length ? clinicDoctors : users
   const currentImportTarget = useMemo(() => {
-    if (activeView === 'Admin') {
+    if (resolvedActiveView === 'Admin') {
       const adminImports = {
         users: {
           key: 'users',
@@ -666,14 +676,12 @@ function App() {
       },
     }
 
-    return viewImports[activeView] || null
-  }, [activeAdminSection, activeView])
-
-  const canAccessView = useCallback((viewKey) => accessibleViewKeys.includes(viewKey), [accessibleViewKeys])
+    return viewImports[resolvedActiveView] || null
+  }, [activeAdminSection, resolvedActiveView])
 
   const openView = useCallback(
     (viewKey) => {
-      if (!canAccessView(viewKey)) {
+      if (!accessibleViewSet.has(viewKey)) {
         const targetLabel = navItems.find((item) => item.key === viewKey)?.label || viewKey
         setToast({
           message: `${activeUser?.name || 'Selected user'} cannot access ${targetLabel}.`,
@@ -685,7 +693,7 @@ function App() {
       setActiveView(viewKey)
       return true
     },
-    [activeUser?.name, canAccessView],
+    [accessibleViewSet, activeUser?.name],
   )
 
   const globalSearchResults = useMemo(() => {
@@ -762,7 +770,7 @@ function App() {
         onSelect: () => setSelectedInvoiceId(invoice.id),
       })),
       ...users
-        .filter(() => canAccessView('Admin'))
+        .filter(() => accessibleViewSet.has('Admin'))
         .map((user) => ({
           id: `user-${user.id}`,
           viewKey: 'Admin',
@@ -772,7 +780,7 @@ function App() {
           onSelect: () => setActiveAdminSection('users'),
         })),
       ...suppliers
-        .filter(() => canAccessView('Admin'))
+        .filter(() => accessibleViewSet.has('Admin'))
         .map((supplier) => ({
           id: `supplier-${supplier.id}`,
           viewKey: 'Admin',
@@ -784,11 +792,11 @@ function App() {
     ]
 
     return entries
-      .filter((entry) => canAccessView(entry.viewKey))
+      .filter((entry) => accessibleViewSet.has(entry.viewKey))
       .filter((entry) => `${entry.label} ${entry.subtitle} ${entry.keywords}`.toLowerCase().includes(query))
       .slice(0, 18)
   }, [
-    canAccessView,
+    accessibleViewSet,
     consultations,
     diseaseMaster,
     globalSearchQuery,
@@ -801,12 +809,6 @@ function App() {
     users,
     visits,
   ])
-
-  useEffect(() => {
-    if (!accessibleViewKeys.includes(activeView)) {
-      setActiveView(accessibleNavItems[0]?.key || 'Dashboard')
-    }
-  }, [accessibleNavItems, accessibleViewKeys, activeView])
 
   const selectAdminSection = useCallback(
     (sectionKey) => {
@@ -1781,8 +1783,10 @@ function App() {
         </div>
         <Panel title="Quick Action Cards" subtitle="Jump directly into the tasks that drive daily clinic operations.">
           <div className="action-grid">
-            {(dashboard.quickActions || []).map((item) => (
-              <button key={item.key} type="button" className="quick-action" onClick={() => setActiveView(item.key)}>
+            {(dashboard.quickActions || [])
+              .filter((item) => accessibleViewSet.has(item.key))
+              .map((item) => (
+              <button key={item.key} type="button" className="quick-action" onClick={() => openView(item.key)}>
                 <strong>{item.label}</strong>
                 <span>Open {item.label.toLowerCase()} module</span>
               </button>
@@ -2394,22 +2398,114 @@ function App() {
         case 'users':
           return (
             <div className="split-grid">
-              <Panel title="User Management" subtitle="Single-clinic users only for required daily roles.">
+              <Panel title="User Management" subtitle="Activate a clinic user and limit which modules they can use.">
                 <SimpleTable
-                  columns={['Name', 'Role', 'Status', 'Phone', 'Shift']}
-                  rows={users.map((user) => [user.name, user.role, user.status, user.phone, user.shift])}
+                  columns={['Name', 'Role', 'Status', 'Phone', 'Shift', 'Access', 'Current']}
+                  rows={users.map((user) => [
+                    user.name,
+                    user.role,
+                    user.status,
+                    user.phone,
+                    user.shift,
+                    `${normalizeAccessList(user.allowed_views, user.role).length} modules`,
+                    workspace?.currentUserId === user.id ? 'Active user' : '-',
+                  ])}
                 />
+                <div className="list-stack">
+                  {users.map((user) => {
+                    const userAccess = normalizeAccessList(user.allowed_views, user.role)
+                    return (
+                      <div key={user.id} className="access-card">
+                        <div className="list-card-header">
+                          <div>
+                            <strong>{user.name}</strong>
+                            <small>{user.role} | {user.status}</small>
+                          </div>
+                          <button
+                            type="button"
+                            className={workspace?.currentUserId === user.id ? 'chip-button active-chip' : 'chip-button'}
+                            onClick={() => handleActiveUserChange(user.id)}
+                          >
+                            {workspace?.currentUserId === user.id ? 'Active User' : 'Set Active'}
+                          </button>
+                        </div>
+                        <div className="pill-row">
+                          {userAccessOptions.map((option) => (
+                            <button
+                              key={`${user.id}-${option.key}`}
+                              type="button"
+                              className={userAccess.includes(option.key) ? 'chip-button active-chip' : 'chip-button'}
+                              onClick={() => handleUserAccessToggle(user.id, option.key)}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </Panel>
-              <Panel title="Add User" subtitle="Create clinic users for daily operations.">
+              <Panel title="Add User" subtitle="Create clinic users and assign module access at the same time.">
                 <form className="form-grid" onSubmit={handleUserSubmit}>
                   <input value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} placeholder="User name" required />
-                  <input value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })} placeholder="Role" required />
+                  <select
+                    value={userForm.role}
+                    onChange={(event) =>
+                      setUserForm({
+                        ...userForm,
+                        role: event.target.value,
+                        allowed_views: getDefaultAccess(event.target.value),
+                      })
+                    }
+                  >
+                    {Object.keys(roleAccessDefaults).map((role) => (
+                      <option key={role}>{role}</option>
+                    ))}
+                  </select>
                   <select value={userForm.status} onChange={(event) => setUserForm({ ...userForm, status: event.target.value })}>
                     <option>Active</option>
                     <option>Inactive</option>
                   </select>
                   <input value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value })} placeholder="Phone" required />
                   <input value={userForm.shift} onChange={(event) => setUserForm({ ...userForm, shift: event.target.value })} placeholder="Shift" required />
+                  <div className="full-span access-card">
+                    <div className="list-card-header">
+                      <strong>Allowed Modules</strong>
+                      <button
+                        type="button"
+                        className="chip-button"
+                        onClick={() => setUserForm({ ...userForm, allowed_views: [...fullAccessKeys] })}
+                      >
+                        Grant All
+                      </button>
+                    </div>
+                    <div className="pill-row">
+                      {userAccessOptions.map((option) => {
+                        const enabled = normalizeAccessList(userForm.allowed_views, userForm.role).includes(option.key)
+                        return (
+                          <button
+                            key={`new-${option.key}`}
+                            type="button"
+                            className={enabled ? 'chip-button active-chip' : 'chip-button'}
+                            onClick={() =>
+                              setUserForm((current) => {
+                                const nextAccess = normalizeAccessList(current.allowed_views, current.role)
+                                return {
+                                  ...current,
+                                  allowed_views: enabled
+                                    ? nextAccess.filter((item) => item !== option.key)
+                                    : [...nextAccess, option.key],
+                                }
+                              })
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                   <button type="submit" className="primary-button">Save User</button>
                 </form>
               </Panel>
@@ -2692,7 +2788,7 @@ function App() {
   }
 
   function renderView() {
-    switch (activeView) {
+    switch (resolvedActiveView) {
       case 'Patients':
         return renderPatients()
       case 'VisitPlanner':
@@ -2722,34 +2818,111 @@ function App() {
     }
   }
 
+  function renderGlobalSearch() {
+    if (!globalSearchOpen) {
+      return null
+    }
+
+    return (
+      <div className="modal-backdrop" onClick={() => setGlobalSearchOpen(false)}>
+        <div className="search-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="list-card-header">
+            <div>
+              <strong>Global Search</strong>
+              <small>Search patients, visits, consultations, medicines, invoices, suppliers, and users.</small>
+            </div>
+            <button type="button" className="ghost-button" onClick={() => setGlobalSearchOpen(false)}>
+              Close
+            </button>
+          </div>
+          <input
+            autoFocus
+            value={globalSearchQuery}
+            onChange={(event) => setGlobalSearchQuery(event.target.value)}
+            placeholder="Search by patient, medicine, invoice, supplier, or user"
+          />
+          <div className="list-stack search-results">
+            {!globalSearchQuery.trim() ? (
+              <EmptyState title="Start typing to search" text="Use global search to jump to records across the clinic workspace." />
+            ) : globalSearchResults.length ? (
+              globalSearchResults.map((entry) => (
+                <button key={entry.id} type="button" className="list-card" onClick={() => handleSearchSelection(entry)}>
+                  <div className="list-card-header">
+                    <strong>{entry.label}</strong>
+                    <StatusPill value={navItems.find((item) => item.key === entry.viewKey)?.label || entry.viewKey} tone="primary" />
+                  </div>
+                  <small>{entry.subtitle}</small>
+                </button>
+              ))
+            ) : (
+              <EmptyState title="No matching results" text="Try a broader patient name, medicine name, invoice number, or supplier." />
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <p className="eyebrow">BlueCare</p>
+          <p className="eyebrow">Clinic Workspace</p>
           <h1>{clinic.name}</h1>
           <p>{clinic.location}</p>
         </div>
         <nav className="nav-list">
-          {navItems.map((item) => (
-            <button key={item.key} type="button" className={activeView === item.key ? 'nav-button active' : 'nav-button'} onClick={() => setActiveView(item.key)}>
+          {accessibleNavItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={resolvedActiveView === item.key ? 'nav-button active' : 'nav-button'}
+              onClick={() => openView(item.key)}
+            >
               {item.label}
             </button>
           ))}
         </nav>
         <div className="sidebar-card">
-          <strong>Theme</strong>
-          <button type="button" className="ghost-button" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
-            Switch to {theme === 'dark' ? 'light' : 'dark'} mode
+          <strong>Global Search</strong>
+          <button type="button" className="primary-button" onClick={() => setGlobalSearchOpen(true)}>
+            Open Search
           </button>
+          <small>Press Ctrl+K to search across patients, visits, medicines, invoices, suppliers, and users.</small>
         </div>
       </aside>
       <main className="workspace">
         <header className="topbar">
-          <h2>{navItems.find((item) => item.key === activeView)?.label || 'Dashboard'}</h2>
+          <div className="topbar-title">
+            <h2>{navItems.find((item) => item.key === resolvedActiveView)?.label || 'Dashboard'}</h2>
+            <small>{activeUser ? `${activeUser.name} | ${activeUser.role}` : clinic.location}</small>
+          </div>
+          <div className="topbar-actions">
+            <select value={activeUser?.id || ''} onChange={(event) => handleActiveUserChange(event.target.value)}>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+            {currentImportTarget ? (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleCsvImport}
+                title={`CSV headers: ${currentImportTarget.headers}`}
+              >
+                Import {currentImportTarget.label} CSV
+              </button>
+            ) : null}
+            <button type="button" className="ghost-button" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </button>
+          </div>
         </header>
         {renderView()}
       </main>
+      {renderGlobalSearch()}
       {toast ? <div className={`toast ${toast.tone}`}>{toast.message}</div> : null}
     </div>
   )

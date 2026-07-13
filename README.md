@@ -1,6 +1,6 @@
-# BlueCare
+# S.V. Kini Ayurvedic clinic
 
-BlueCare is a React-only clinic workspace focused on daily operations with a clean healthcare UI and local data.
+S.V. Kini Ayurvedic clinic is a React-only clinic workspace focused on daily operations with a clean healthcare UI and local data.
 
 ## Production URL
 

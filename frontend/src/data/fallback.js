@@ -252,9 +252,33 @@ export function buildFallbackClinicData() {
   ]
 
   const users = [
-    { id: 'user-1', name: 'Dr. Kavya Iyer', role: 'Chief Ayurvedic Physician', status: 'Active', phone: '+91 98980 11223', shift: '09:00 - 16:00' },
-    { id: 'user-2', name: 'Dr. Rohan Sharma', role: 'Ayurvedic Consultant', status: 'Active', phone: '+91 98980 11224', shift: '10:00 - 18:00' },
-    { id: 'user-3', name: 'Anjali Das', role: 'Front Desk Coordinator', status: 'Active', phone: '+91 98980 11225', shift: '08:30 - 17:30' },
+    {
+      id: 'user-1',
+      name: 'Dr. Kavya Iyer',
+      role: 'Chief Ayurvedic Physician',
+      status: 'Active',
+      phone: '+91 98980 11223',
+      shift: '09:00 - 16:00',
+      allowed_views: ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'IPD', 'DiseaseMaster', 'Medicines', 'Packages', 'Inventory', 'Billing', 'Reports', 'Notifications', 'Admin'],
+    },
+    {
+      id: 'user-2',
+      name: 'Dr. Rohan Sharma',
+      role: 'Ayurvedic Consultant',
+      status: 'Active',
+      phone: '+91 98980 11224',
+      shift: '10:00 - 18:00',
+      allowed_views: ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'IPD', 'DiseaseMaster', 'Medicines', 'Packages', 'Billing', 'Reports', 'Notifications'],
+    },
+    {
+      id: 'user-3',
+      name: 'Anjali Das',
+      role: 'Front Desk Coordinator',
+      status: 'Active',
+      phone: '+91 98980 11225',
+      shift: '08:30 - 17:30',
+      allowed_views: ['Dashboard', 'Patients', 'VisitPlanner', 'Billing', 'Notifications'],
+    },
   ]
 
   const suppliers = [
@@ -427,10 +451,11 @@ export function buildFallbackClinicData() {
 
   return {
     clinic: {
-      name: 'BlueCare',
-      location: 'Bengaluru, India',
+      name: 'S.V. Kini Ayurvedic clinic',
+      location: 'Mumbai, Maharashtra, India',
       contact: '+91 80000 12211',
     },
+    currentUserId: 'user-1',
     users,
     patients,
     visitPlanner,
@@ -446,8 +471,8 @@ export function buildFallbackClinicData() {
       low_stock_threshold: 25,
       near_expiry_days: 45,
       clinic_hours: '08:30 - 18:30',
-      receipt_footer: 'BlueCare',
-      backup_note: 'Local workspace backup.',
+      receipt_footer: 'S.V. Kini Ayurvedic clinic, Mumbai, Maharashtra, India',
+      backup_note: 'Local workspace backup for S.V. Kini Ayurvedic clinic.',
       supported_units: ['Tablet', 'Capsule', 'Powder (gm)', 'Churna', 'Syrup (ml)', 'Oil (ml)', 'Drops', 'Sachet', 'Bottle', 'Jar', 'Tube', 'Pack'],
     },
   }
