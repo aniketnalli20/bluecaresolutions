@@ -1,24 +1,27 @@
-# BlueCare EMR
+# BlueCare Ayurvedic Clinic
 
-BlueCare EMR is now a React-only clinic workspace focused on a cleaner visual style and a smoother day-to-day workflow.
+BlueCare Ayurvedic Clinic is a React-only single-clinic management workspace focused on daily Ayurvedic operations with a clean healthcare UI and local demo data.
+
+## Production URL
+
+- Use [https://bluecaresolutions.vercel.app/](https://bluecaresolutions.vercel.app/) as the primary application URL.
 
 ## What Is Included
 
-- Dashboard with overview cards, upcoming visits, recent activity, and quick actions
-- Patient management with search, filters, full profiles, allergies, conditions, and visit timeline
-- Appointment planning with status updates for scheduled, checked in, completed, and cancelled visits
-- Doctor management with specialization, availability, and assigned visit totals
-- Consultation notes with diagnosis, treatment plans, and supporting document names
-- Prescription creation with medicine details and downloadable summaries
-- Billing with invoice creation, payment tracking, and downloadable receipts
-- Reports with CSV export
-- Notifications for upcoming visits, follow-ups, and payment reminders
+- Clinic dashboard with today's appointments, OPD count, IPD count, revenue, stock alerts, follow-ups, quick actions, and recent consultations
+- Patient management with Ayurvedic history, family history, allergy history, occupation, contact details, reminders, and visit timeline
+- Visit planner for appointments, walk-ins, follow-ups, therapy planning, doctor calendar, and daily queue visibility
+- OPD management with symptoms, Nadi examination, diagnosis, Ayurvedic assessment, prescriptions, diet and lifestyle advice, Panchakarma recommendation, and billing
+- IPD management with admission records, bed allocation, treatment chart, Panchakarma schedule, medicine administration, diet plan, discharge summary, and final invoice
+- Disease master with illness-specific medicine templates for direct prescription loading
+- Unit-based medicine catalog, inventory monitoring, stock warnings, suppliers, purchase records, packages, billing, reports, notifications, and clinic admin tools
 
 ## Project Structure
 
 ```text
 bluecaresolutions/
 |-- frontend/
+|   |-- public/
 |   |-- package.json
 |   `-- src/
 |       |-- data/
@@ -26,40 +29,21 @@ bluecaresolutions/
 |       |-- App.css
 |       |-- App.jsx
 |       `-- index.css
+|-- vercel.json
 `-- README.md
 ```
 
-## Run The App
+## Repeat Vercel Redeploys
 
-1. Open a terminal in `frontend`
-2. Install dependencies
+- Root deployment config is defined in [vercel.json](file:///c:/xampp/htdocs/bluecaresolutions/vercel.json).
+- Vercel installs from `frontend`, builds with `npm run build`, and serves `frontend/dist`.
+- Any future UI or data changes must be redeployed to appear on [https://bluecaresolutions.vercel.app/](https://bluecaresolutions.vercel.app/).
+- If Vercel does not pick up a new deployment automatically, trigger a manual redeploy from the Vercel project dashboard.
+- SPA rewrites are already configured, so direct paths still resolve to the app entry correctly.
 
-```bash
-npm install
-```
+## Local Data Behavior
 
-3. Start the app
-
-```bash
-npm run dev
-```
-
-4. Build for production
-
-```bash
-npm run build
-```
-
-## Vercel Deployment
-
-- The project now includes a root [vercel.json](file:///c:/xampp/htdocs/bluecaresolutions/vercel.json) so Vercel builds the nested `frontend` app correctly.
-- The production output is `frontend/dist`.
-- If the Vercel project was created before this setup, trigger a new deployment so the latest config is picked up.
-- The expected production URL is [https://bluecaresolutions.vercel.app/](https://bluecaresolutions.vercel.app/).
-
-## How Saving Works
-
-- Starter records load automatically the first time the app opens
-- Changes are saved on the current device through the browser
-- Use the refresh button in the sidebar if you want to restore the starter records
+- Starter Ayurvedic demo records load automatically on first open.
+- All changes remain stored in the browser on the current device only.
+- The clinic admin panel includes local backup, restore, and demo reset support.
 
