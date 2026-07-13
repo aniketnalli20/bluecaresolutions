@@ -1,0 +1,457 @@
+export function buildFallbackClinicData() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const toIsoDate = (value) => value.toISOString().slice(0, 10)
+  const addDays = (days) => {
+    const next = new Date(today)
+    next.setDate(next.getDate() + days)
+    return toIsoDate(next)
+  }
+  const addMonths = (months) => {
+    const next = new Date(today)
+    next.setMonth(next.getMonth() + months)
+    return toIsoDate(next)
+  }
+
+  const diseaseMaster = [
+    {
+      id: 'disease-1',
+      illness: 'Arthritis',
+      recommended_medicines: [
+        { medicine: 'Yogaraja Guggulu', dosage: '2 tablets', schedule: 'Morning and Night', food_relation: 'After food', duration: '45 days', quantity: '90 tablets' },
+        { medicine: 'Mahayogaraj Guggulu', dosage: '1 tablet', schedule: 'Afternoon', food_relation: 'After food', duration: '30 days', quantity: '30 tablets' },
+      ],
+      diet_advice: 'Warm meals, avoid refrigerated foods, add ginger and methi.',
+      lifestyle_advice: 'Gentle stretching, abhyanga, and regular sleep timing.',
+      notes: 'Useful in Vata dominant sandhivata patterns.',
+    },
+    {
+      id: 'disease-2',
+      illness: 'Diabetes',
+      recommended_medicines: [
+        { medicine: 'Nishamalaki Tablets', dosage: '2 tablets', schedule: 'Morning and Night', food_relation: 'Before food', duration: '60 days', quantity: '120 tablets' },
+        { medicine: 'Chandraprabha Vati', dosage: '2 tablets', schedule: 'Afternoon and Night', food_relation: 'After food', duration: '45 days', quantity: '90 tablets' },
+      ],
+      diet_advice: 'Reduce refined sugars, prefer barley, bottle gourd, and warm water.',
+      lifestyle_advice: 'Morning walk, pranayama, and early dinner.',
+      notes: 'Supports madhumeha management with Kapha control.',
+    },
+    {
+      id: 'disease-3',
+      illness: 'Acidity',
+      recommended_medicines: [
+        { medicine: 'Avipattikar Churna', dosage: '5 gm', schedule: 'Night', food_relation: 'After food', duration: '21 days', quantity: '150 gm' },
+        { medicine: 'Kamadudha Tablets', dosage: '1 tablet', schedule: 'Morning and Afternoon', food_relation: 'Before food', duration: '15 days', quantity: '30 tablets' },
+      ],
+      diet_advice: 'Avoid spicy fried food, prefer soft cooked meals and coconut water.',
+      lifestyle_advice: 'No late-night meals and no sleeping immediately after lunch.',
+      notes: 'Pitta pacifying line of care.',
+    },
+    {
+      id: 'disease-4',
+      illness: 'Constipation',
+      recommended_medicines: [
+        { medicine: 'Triphala Churna', dosage: '5 gm', schedule: 'Night', food_relation: 'After food', duration: '30 days', quantity: '150 gm' },
+      ],
+      diet_advice: 'Increase warm fluids, soaked raisins, and ghee with dinner.',
+      lifestyle_advice: 'Set regular bowel routine and daily walking.',
+      notes: 'Useful in Vata-Kapha sluggish bowel patterns.',
+    },
+    {
+      id: 'disease-5',
+      illness: 'Migraine',
+      recommended_medicines: [
+        { medicine: 'Pathyadi Kwath Syrup', dosage: '15 ml', schedule: 'Morning and Evening', food_relation: 'Before food', duration: '30 days', quantity: '900 ml' },
+        { medicine: 'Anu Taila', dosage: '2 drops', schedule: 'Morning', food_relation: 'Before food', duration: '21 days', quantity: '1 bottle' },
+      ],
+      diet_advice: 'Avoid fasting, fermented foods, and excessive coffee.',
+      lifestyle_advice: 'Regular sleep, screen breaks, and shiroabhyanga.',
+      notes: 'Nasya support often considered based on evaluation.',
+    },
+    {
+      id: 'disease-6',
+      illness: 'Joint Pain',
+      recommended_medicines: [
+        { medicine: 'Mahanarayana Oil', dosage: '10 ml external', schedule: 'Night', food_relation: 'External use', duration: '30 days', quantity: '300 ml' },
+      ],
+      diet_advice: 'Warm soups, sesame, and no cold exposure after bath.',
+      lifestyle_advice: 'Mild mobility exercises and local fomentation.',
+      notes: 'Combine with external therapies where needed.',
+    },
+    {
+      id: 'disease-7',
+      illness: 'Hair Loss',
+      recommended_medicines: [
+        { medicine: 'Bhringamalakadi Oil', dosage: '5 ml external', schedule: 'Night', food_relation: 'External use', duration: '45 days', quantity: '225 ml' },
+      ],
+      diet_advice: 'Include black sesame, dates, and leafy greens.',
+      lifestyle_advice: 'Reduce late nights and stress load.',
+      notes: 'Check digestion and sleep pattern.',
+    },
+    {
+      id: 'disease-8',
+      illness: 'PCOD',
+      recommended_medicines: [
+        { medicine: 'Kanchanar Guggulu', dosage: '2 tablets', schedule: 'Morning and Night', food_relation: 'After food', duration: '60 days', quantity: '120 tablets' },
+      ],
+      diet_advice: 'Warm, low-glycemic meals and no packaged snacks.',
+      lifestyle_advice: 'Daily yoga, brisk walk, and stress management.',
+      notes: 'Supports metabolic and cycle correction plans.',
+    },
+    {
+      id: 'disease-9',
+      illness: 'Obesity',
+      recommended_medicines: [
+        { medicine: 'Trikatu Churna', dosage: '2 gm', schedule: 'Morning and Evening', food_relation: 'Before food', duration: '30 days', quantity: '120 gm' },
+      ],
+      diet_advice: 'Laghu ahara, warm water, and no sweetened beverages.',
+      lifestyle_advice: 'Daily exercise and no day sleep.',
+      notes: 'Kapha reducing protocol.',
+    },
+    {
+      id: 'disease-10',
+      illness: 'Gastritis',
+      recommended_medicines: [
+        { medicine: 'Kamadudha Tablets', dosage: '1 tablet', schedule: 'Morning and Night', food_relation: 'Before food', duration: '21 days', quantity: '42 tablets' },
+      ],
+      diet_advice: 'Soft diet with coriander and cumin water.',
+      lifestyle_advice: 'Avoid skipped meals and stress eating.',
+      notes: 'Useful in pittaja amlapitta states.',
+    },
+    {
+      id: 'disease-11',
+      illness: 'Asthma',
+      recommended_medicines: [
+        { medicine: 'Sitopaladi Churna', dosage: '3 gm', schedule: 'Morning and Night', food_relation: 'After food', duration: '30 days', quantity: '180 gm' },
+      ],
+      diet_advice: 'Avoid cold curd, ice drinks, and heavy dinner.',
+      lifestyle_advice: 'Steam inhalation and breathing exercises.',
+      notes: 'Kapha-Vata respiratory support.',
+    },
+    {
+      id: 'disease-12',
+      illness: 'Skin Diseases',
+      recommended_medicines: [
+        { medicine: 'Mahamanjishtadi Kwath Syrup', dosage: '15 ml', schedule: 'Morning and Evening', food_relation: 'After food', duration: '45 days', quantity: '1350 ml' },
+      ],
+      diet_advice: 'Avoid seafood, curd at night, and oily reheated food.',
+      lifestyle_advice: 'Hydration, bowel regularity, and stress reduction.',
+      notes: 'Rakta-pitta balancing approach.',
+    },
+  ]
+
+  const patients = [
+    {
+      id: 'patient-1',
+      patient_id: 'AYU-1001',
+      name: 'Aarav Nair',
+      age: 42,
+      gender: 'Male',
+      contact_details: '+91 98765 21011',
+      email: 'aarav.nair@demo.bluecare.test',
+      emergency_contact: 'Lakshmi Nair | +91 98765 21019',
+      address: '14 Lake View Road, Bengaluru',
+      occupation: 'Architect',
+      past_illness_history: 'Acidity episodes for 5 years with occasional joint stiffness.',
+      family_history: 'Father had diabetes and osteoarthritis.',
+      allergy_history: 'No known drug allergy.',
+      previous_ayurvedic_treatments: 'Two earlier courses of Avipattikar Churna and Abhyanga.',
+      current_medications: 'Uses antacid syrup occasionally.',
+      follow_up_date: addDays(5),
+      visit_timeline: [
+        { date: addDays(-45), title: 'Initial OPD visit', detail: 'Presented with acidity, bloating, and irregular meals.' },
+        { date: addDays(-21), title: 'Follow-up review', detail: 'Symptoms reduced after Pathya and Deepana-Pachana support.' },
+      ],
+    },
+    {
+      id: 'patient-2',
+      patient_id: 'AYU-1002',
+      name: 'Nandini Rao',
+      age: 31,
+      gender: 'Female',
+      contact_details: '+91 99881 33445',
+      email: 'nandini.rao@demo.bluecare.test',
+      emergency_contact: 'Kiran Rao | +91 99881 33440',
+      address: '28 Palm Grove, Mysuru',
+      occupation: 'Software Engineer',
+      past_illness_history: 'PCOD with weight fluctuations and irregular sleep routine.',
+      family_history: 'Mother has hypothyroidism.',
+      allergy_history: 'Allergic to dust and mild fragrance triggers.',
+      previous_ayurvedic_treatments: 'Underwent Udvartana and Kashaya support last year.',
+      current_medications: 'Vitamin D supplements.',
+      follow_up_date: addDays(3),
+      visit_timeline: [
+        { date: addDays(-32), title: 'OPD consultation', detail: 'Cycle irregularity, fatigue, and stress noted.' },
+        { date: addDays(-8), title: 'Therapy planning', detail: 'Metabolic correction plan and yoga support advised.' },
+      ],
+    },
+    {
+      id: 'patient-3',
+      patient_id: 'AYU-1003',
+      name: 'Prakash Menon',
+      age: 56,
+      gender: 'Male',
+      contact_details: '+91 99001 77442',
+      email: 'prakash.menon@demo.bluecare.test',
+      emergency_contact: 'Latha Menon | +91 99001 77440',
+      address: '3 Temple Street, Kochi',
+      occupation: 'Teacher',
+      past_illness_history: 'Type 2 diabetes with constipation and disturbed appetite.',
+      family_history: 'Brother also diagnosed with diabetes.',
+      allergy_history: 'No known allergies.',
+      previous_ayurvedic_treatments: 'Took Nishamalaki and Chandraprabha Vati earlier.',
+      current_medications: 'Metformin 500 mg once daily.',
+      follow_up_date: addDays(10),
+      visit_timeline: [
+        { date: addDays(-26), title: 'Diet counseling', detail: 'Kapha-predominant pattern explained with Ahara guidance.' },
+      ],
+    },
+    {
+      id: 'patient-4',
+      patient_id: 'AYU-1004',
+      name: 'Meera Joshi',
+      age: 47,
+      gender: 'Female',
+      contact_details: '+91 98450 63210',
+      email: 'meera.joshi@demo.bluecare.test',
+      emergency_contact: 'Sandeep Joshi | +91 98450 63211',
+      address: '77 Sunrise Enclave, Pune',
+      occupation: 'Boutique Owner',
+      past_illness_history: 'Joint pain, cervical stiffness, and migraine episodes.',
+      family_history: 'Mother had rheumatoid arthritis.',
+      allergy_history: 'Sensitive to strong pain balms.',
+      previous_ayurvedic_treatments: 'Kati basti and Nasya in a previous season.',
+      current_medications: 'Occasional analgesic use.',
+      follow_up_date: addDays(1),
+      visit_timeline: [
+        { date: addDays(-18), title: 'Pain management review', detail: 'Nadi and Sandhi findings documented.' },
+      ],
+    },
+    {
+      id: 'patient-5',
+      patient_id: 'AYU-1005',
+      name: 'Suhana Ali',
+      age: 26,
+      gender: 'Female',
+      contact_details: '+91 98111 22550',
+      email: 'suhana.ali@demo.bluecare.test',
+      emergency_contact: 'Aslam Ali | +91 98111 22559',
+      address: '9 Green Court, Hyderabad',
+      occupation: 'Student',
+      past_illness_history: 'Hair fall, low appetite, and occasional acidity.',
+      family_history: 'Father has asthma.',
+      allergy_history: 'No known allergies.',
+      previous_ayurvedic_treatments: 'None documented.',
+      current_medications: 'No regular medication.',
+      follow_up_date: addDays(14),
+      visit_timeline: [
+        { date: addDays(-5), title: 'First consultation', detail: 'Agni imbalance and stress pattern explained.' },
+      ],
+    },
+  ]
+
+  const users = [
+    { id: 'user-1', name: 'Dr. Kavya Iyer', role: 'Chief Ayurvedic Physician', status: 'Active', phone: '+91 98980 11223', shift: '09:00 - 16:00' },
+    { id: 'user-2', name: 'Dr. Rohan Sharma', role: 'Ayurvedic Consultant', status: 'Active', phone: '+91 98980 11224', shift: '10:00 - 18:00' },
+    { id: 'user-3', name: 'Anjali Das', role: 'Front Desk Coordinator', status: 'Active', phone: '+91 98980 11225', shift: '08:30 - 17:30' },
+  ]
+
+  const suppliers = [
+    { id: 'supplier-1', name: 'Sattva Ayur Pharma', contact_person: 'Harish Kumar', phone: '+91 80440 11200', address: 'Peenya Industrial Area, Bengaluru' },
+    { id: 'supplier-2', name: 'Veda Herb Distributors', contact_person: 'Minal Shah', phone: '+91 22440 99110', address: 'Bhiwandi Logistics Hub, Mumbai' },
+    { id: 'supplier-3', name: 'Prakriti Botanicals', contact_person: 'Ritu Malhotra', phone: '+91 11440 77123', address: 'Sector 18, Gurugram' },
+  ]
+
+  const medicineCatalog = [
+    { id: 'medicine-1', medicine_name: 'Yogaraja Guggulu', category: 'Classical Medicines', purchase_unit: 'Bottle', dispensing_unit: 'Tablet', unit_conversion: '1 bottle = 60 tablets', batch_number: 'YG-2406-A', purchase_price: 155, selling_price: 240, current_stock: 110, low_stock_level: 90, expiry_date: addMonths(5), manufacturer: 'Sattva Ayur Pharma', supplier_id: 'supplier-1', monthly_movement: 84 },
+    { id: 'medicine-2', medicine_name: 'Nishamalaki Tablets', category: 'Tablets', purchase_unit: 'Bottle', dispensing_unit: 'Tablet', unit_conversion: '1 bottle = 60 tablets', batch_number: 'NSM-2405-C', purchase_price: 175, selling_price: 280, current_stock: 58, low_stock_level: 70, expiry_date: addMonths(3), manufacturer: 'Prakriti Botanicals', supplier_id: 'supplier-3', monthly_movement: 62 },
+    { id: 'medicine-3', medicine_name: 'Avipattikar Churna', category: 'Powders', purchase_unit: 'Jar', dispensing_unit: 'Powder (gm)', unit_conversion: '1 jar = 250 gm', batch_number: 'AVP-2407-B', purchase_price: 130, selling_price: 205, current_stock: 240, low_stock_level: 100, expiry_date: addMonths(4), manufacturer: 'Veda Herb Distributors', supplier_id: 'supplier-2', monthly_movement: 41 },
+    { id: 'medicine-4', medicine_name: 'Triphala Churna', category: 'Churna', purchase_unit: 'Jar', dispensing_unit: 'Churna', unit_conversion: '1 jar = 300 gm', batch_number: 'TRI-2404-F', purchase_price: 120, selling_price: 190, current_stock: 0, low_stock_level: 80, expiry_date: addDays(-6), manufacturer: 'Sattva Ayur Pharma', supplier_id: 'supplier-1', monthly_movement: 36 },
+    { id: 'medicine-5', medicine_name: 'Pathyadi Kwath Syrup', category: 'Syrups', purchase_unit: 'Bottle', dispensing_unit: 'Syrup (ml)', unit_conversion: '1 bottle = 450 ml', batch_number: 'PKS-2406-D', purchase_price: 165, selling_price: 255, current_stock: 74, low_stock_level: 60, expiry_date: addMonths(2), manufacturer: 'Prakriti Botanicals', supplier_id: 'supplier-3', monthly_movement: 57 },
+    { id: 'medicine-6', medicine_name: 'Mahanarayana Oil', category: 'Oils', purchase_unit: 'Bottle', dispensing_unit: 'Oil (ml)', unit_conversion: '1 bottle = 200 ml', batch_number: 'MNO-2405-E', purchase_price: 210, selling_price: 320, current_stock: 22, low_stock_level: 30, expiry_date: addDays(24), manufacturer: 'Veda Herb Distributors', supplier_id: 'supplier-2', monthly_movement: 18 },
+    { id: 'medicine-7', medicine_name: 'Bhringamalakadi Oil', category: 'Oils', purchase_unit: 'Bottle', dispensing_unit: 'Oil (ml)', unit_conversion: '1 bottle = 100 ml', batch_number: 'BHO-2407-A', purchase_price: 190, selling_price: 285, current_stock: 14, low_stock_level: 20, expiry_date: addMonths(6), manufacturer: 'Sattva Ayur Pharma', supplier_id: 'supplier-1', monthly_movement: 9 },
+    { id: 'medicine-8', medicine_name: 'Kanchanar Guggulu', category: 'Tablets', purchase_unit: 'Bottle', dispensing_unit: 'Tablet', unit_conversion: '1 bottle = 60 tablets', batch_number: 'KGG-2404-K', purchase_price: 160, selling_price: 245, current_stock: 92, low_stock_level: 75, expiry_date: addMonths(8), manufacturer: 'Prakriti Botanicals', supplier_id: 'supplier-3', monthly_movement: 29 },
+    { id: 'medicine-9', medicine_name: 'Sitopaladi Churna', category: 'Powders', purchase_unit: 'Pack', dispensing_unit: 'Sachet', unit_conversion: '1 pack = 30 sachets', batch_number: 'SIT-2406-P', purchase_price: 145, selling_price: 225, current_stock: 46, low_stock_level: 40, expiry_date: addMonths(1), manufacturer: 'Veda Herb Distributors', supplier_id: 'supplier-2', monthly_movement: 7 },
+    { id: 'medicine-10', medicine_name: 'Anu Taila', category: 'Drops', purchase_unit: 'Bottle', dispensing_unit: 'Drops', unit_conversion: '1 bottle = 10 ml', batch_number: 'ANT-2407-Z', purchase_price: 95, selling_price: 150, current_stock: 36, low_stock_level: 18, expiry_date: addMonths(9), manufacturer: 'Sattva Ayur Pharma', supplier_id: 'supplier-1', monthly_movement: 5 },
+    { id: 'medicine-11', medicine_name: 'Kamadudha Tablets', category: 'Tablets', purchase_unit: 'Bottle', dispensing_unit: 'Tablet', unit_conversion: '1 bottle = 40 tablets', batch_number: 'KMD-2403-Q', purchase_price: 118, selling_price: 180, current_stock: 12, low_stock_level: 25, expiry_date: addDays(12), manufacturer: 'Prakriti Botanicals', supplier_id: 'supplier-3', monthly_movement: 21 },
+  ]
+
+  const visitPlanner = [
+    { id: 'visit-1', patient_id: 'patient-1', patient_name: 'Aarav Nair', doctor_name: 'Dr. Kavya Iyer', visit_type: 'Follow-up', appointment_date: addDays(0), appointment_time: '09:15', status: 'Scheduled', therapy_plan: 'Diet correction review', queue_no: 1, notes: 'Review acidity and meal timing.' },
+    { id: 'visit-2', patient_id: 'patient-4', patient_name: 'Meera Joshi', doctor_name: 'Dr. Rohan Sharma', visit_type: 'Appointment', appointment_date: addDays(0), appointment_time: '10:00', status: 'Checked In', therapy_plan: 'Joint pain reassessment', queue_no: 2, notes: 'Evaluate Panchakarma response.' },
+    { id: 'visit-3', patient_id: 'patient-2', patient_name: 'Nandini Rao', doctor_name: 'Dr. Kavya Iyer', visit_type: 'Therapy Planning', appointment_date: addDays(0), appointment_time: '11:30', status: 'Scheduled', therapy_plan: 'Udvartana and cycle support', queue_no: 3, notes: 'Package counseling required.' },
+    { id: 'visit-4', patient_id: 'patient-3', patient_name: 'Prakash Menon', doctor_name: 'Dr. Rohan Sharma', visit_type: 'Walk-in', appointment_date: addDays(0), appointment_time: '12:10', status: 'Completed', therapy_plan: 'Blood sugar review', queue_no: 4, notes: 'Walk-in added by front desk.' },
+    { id: 'visit-5', patient_id: 'patient-5', patient_name: 'Suhana Ali', doctor_name: 'Dr. Kavya Iyer', visit_type: 'Appointment', appointment_date: addDays(1), appointment_time: '09:45', status: 'Scheduled', therapy_plan: 'Hair and digestion review', queue_no: 1, notes: 'First follow-up after medicine start.' },
+  ]
+
+  const opdConsultations = [
+    {
+      id: 'opd-1',
+      patient_id: 'patient-1',
+      patient_name: 'Aarav Nair',
+      doctor_name: 'Dr. Kavya Iyer',
+      consultation_date: addDays(-2),
+      symptoms: 'Hyperacidity, sour belching, bloating after late dinner.',
+      nadi_examination: 'Pitta-Vata predominance with unstable agni.',
+      diagnosis: 'Amlapitta',
+      disease_template_id: 'disease-3',
+      ayurvedic_assessment: 'Pitta vriddhi with manda-agni and irregular ahara.',
+      prescription: diseaseMaster.find((item) => item.id === 'disease-3').recommended_medicines,
+      diet_recommendations: 'Early dinner, thin rice gruel, coriander water, avoid bakery items.',
+      lifestyle_recommendations: 'No skipped meals, reduce screen exposure after dinner.',
+      panchakarma_recommendation: 'Not required immediately; consider virechana planning later.',
+      follow_up_date: addDays(5),
+      consultation_notes: 'Patient responded well to previous pathya but relapsed after travel.',
+      billing: { consultation: 600, medicines: 520, package: 0, panchakarma: 0, therapies: 0, total: 1120, payment_status: 'Paid' },
+    },
+    {
+      id: 'opd-2',
+      patient_id: 'patient-2',
+      patient_name: 'Nandini Rao',
+      doctor_name: 'Dr. Kavya Iyer',
+      consultation_date: addDays(-1),
+      symptoms: 'Delayed cycle, fatigue, abdominal heaviness, weight gain.',
+      nadi_examination: 'Kapha-Vata pattern with apana vata disturbance.',
+      diagnosis: 'PCOD',
+      disease_template_id: 'disease-8',
+      ayurvedic_assessment: 'Kapha avarana with agnimandya and artava dushti.',
+      prescription: diseaseMaster.find((item) => item.id === 'disease-8').recommended_medicines,
+      diet_recommendations: 'Millet-based meals, no late-night snacking, warm jeera water.',
+      lifestyle_recommendations: 'Daily yoga, brisk walk, reduce desk-time inertia.',
+      panchakarma_recommendation: 'Udvartana package advised for 4 sessions.',
+      follow_up_date: addDays(3),
+      consultation_notes: 'Patient prefers package-based care for the next 3 months.',
+      billing: { consultation: 700, medicines: 490, package: 1800, panchakarma: 0, therapies: 0, total: 2990, payment_status: 'Partial' },
+    },
+    {
+      id: 'opd-3',
+      patient_id: 'patient-4',
+      patient_name: 'Meera Joshi',
+      doctor_name: 'Dr. Rohan Sharma',
+      consultation_date: addDays(0),
+      symptoms: 'Knee pain, cervical stiffness, occasional migraine.',
+      nadi_examination: 'Vata aggravated with mild pitta overlay.',
+      diagnosis: 'Joint Pain',
+      disease_template_id: 'disease-6',
+      ayurvedic_assessment: 'Vata prakopa with sandhi shoola and rukshata.',
+      prescription: diseaseMaster.find((item) => item.id === 'disease-6').recommended_medicines,
+      diet_recommendations: 'Warm soups, sesame, garlic in moderation, no cold salads.',
+      lifestyle_recommendations: 'Daily abhyanga and supervised stretching.',
+      panchakarma_recommendation: 'Janu Basti and local swedana for 5 sessions.',
+      follow_up_date: addDays(1),
+      consultation_notes: 'Pain increases after travel and prolonged standing.',
+      billing: { consultation: 650, medicines: 320, package: 0, panchakarma: 1600, therapies: 0, total: 2570, payment_status: 'Pending' },
+    },
+  ]
+
+  const ipdAdmissions = [
+    {
+      id: 'ipd-1',
+      patient_id: 'patient-4',
+      patient_name: 'Meera Joshi',
+      doctor_name: 'Dr. Rohan Sharma',
+      admission_date: addDays(-1),
+      bed_allocation: 'Room B | Bed 02',
+      diagnosis: 'Severe cervical and knee pain requiring supervised Panchakarma.',
+      daily_treatment_chart: [
+        { day: 'Day 1', treatment: 'Abhyanga + Nadi Sweda', progress: 'Pain reduced slightly after therapy.' },
+        { day: 'Day 2', treatment: 'Janu Basti', progress: 'Improved stiffness and gait comfort.' },
+      ],
+      panchakarma_schedule: ['Janu Basti - 5 sessions', 'Patra Pinda Sweda - 3 sessions'],
+      medicine_administration: ['Yogaraja Guggulu - 2 tablets twice daily', 'External Mahanarayana Oil application at bedtime'],
+      diet_plan: 'Warm gruels, moong soup, medicated water, no refrigerated food.',
+      daily_progress: 'Sleeping better and walking with less discomfort.',
+      discharge_summary: 'Expected discharge after completion of 5 therapy sessions.',
+      final_invoice: 12800,
+      status: 'Admitted',
+    },
+    {
+      id: 'ipd-2',
+      patient_id: 'patient-3',
+      patient_name: 'Prakash Menon',
+      doctor_name: 'Dr. Kavya Iyer',
+      admission_date: addDays(-9),
+      bed_allocation: 'Room A | Bed 01',
+      diagnosis: 'Metabolic correction stay with diet and medicine supervision.',
+      daily_treatment_chart: [
+        { day: 'Day 1', treatment: 'Diet stabilization', progress: 'Bowel movement improved.' },
+        { day: 'Day 2', treatment: 'Internal medication review', progress: 'Appetite improved with no heaviness.' },
+      ],
+      panchakarma_schedule: ['Mild Udvartana - 2 sessions'],
+      medicine_administration: ['Nishamalaki Tablets twice daily', 'Triphala Churna at bedtime'],
+      diet_plan: 'Barley gruel, lauki soup, early dinner, medicated warm water.',
+      daily_progress: 'Discharged with home plan and dietary advice.',
+      discharge_summary: 'Stable for home-based care and regular OPD follow-up.',
+      final_invoice: 9800,
+      status: 'Discharged',
+    },
+  ]
+
+  const packages = [
+    { id: 'package-1', name: '1 Month', included_medicines: ['Avipattikar Churna', 'Kamadudha Tablets'], consultation_frequency: '1 consultation every 2 weeks', follow_up_schedule: 'Day 14 review', therapy_sessions: 2, panchakarma_sessions: 0, discount: '5%', package_validity: '30 days', auto_renewal_reminder: addDays(25) },
+    { id: 'package-2', name: '3 Months', included_medicines: ['Kanchanar Guggulu', 'Nishamalaki Tablets', 'Trikatu support'], consultation_frequency: 'Monthly consultation', follow_up_schedule: 'Monthly review with mid-cycle check-in', therapy_sessions: 6, panchakarma_sessions: 2, discount: '10%', package_validity: '90 days', auto_renewal_reminder: addDays(80) },
+    { id: 'package-3', name: '6 Months', included_medicines: ['Disease-specific formulations', 'External oils', 'Digestive support'], consultation_frequency: 'Monthly consultation plus nursing call', follow_up_schedule: 'Every 30 days with therapy review', therapy_sessions: 12, panchakarma_sessions: 4, discount: '15%', package_validity: '180 days', auto_renewal_reminder: addDays(170) },
+  ]
+
+  const purchases = [
+    {
+      id: 'purchase-1',
+      purchase_order_number: 'PO-AYU-101',
+      supplier_id: 'supplier-1',
+      purchase_date: addDays(-12),
+      status: 'Received',
+      total_amount: 18650,
+      items: [
+        { medicine_name: 'Yogaraja Guggulu', quantity: 6, purchase_unit: 'Bottle', batch_number: 'YG-2406-A' },
+        { medicine_name: 'Anu Taila', quantity: 12, purchase_unit: 'Bottle', batch_number: 'ANT-2407-Z' },
+      ],
+    },
+    {
+      id: 'purchase-2',
+      purchase_order_number: 'PO-AYU-102',
+      supplier_id: 'supplier-2',
+      purchase_date: addDays(-4),
+      status: 'Pending Receipt',
+      total_amount: 9320,
+      items: [{ medicine_name: 'Mahanarayana Oil', quantity: 8, purchase_unit: 'Bottle', batch_number: 'MNO-2405-E' }],
+    },
+  ]
+
+  const invoices = [
+    { id: 'invoice-1', invoice_number: 'INV-AYU-001', patient_id: 'patient-1', patient_name: 'Aarav Nair', bill_type: 'Consultation', consultation: 600, medicines: 520, treatment_packages: 0, panchakarma: 0, therapies: 0, discount: 0, total_amount: 1120, paid_amount: 1120, payment_status: 'Paid', created_at: addDays(-2) },
+    { id: 'invoice-2', invoice_number: 'INV-AYU-002', patient_id: 'patient-2', patient_name: 'Nandini Rao', bill_type: 'Treatment Packages', consultation: 700, medicines: 490, treatment_packages: 1800, panchakarma: 0, therapies: 0, discount: 200, total_amount: 2790, paid_amount: 1500, payment_status: 'Partial', created_at: addDays(-1) },
+    { id: 'invoice-3', invoice_number: 'INV-AYU-003', patient_id: 'patient-4', patient_name: 'Meera Joshi', bill_type: 'Panchakarma', consultation: 650, medicines: 320, treatment_packages: 0, panchakarma: 1600, therapies: 0, discount: 0, total_amount: 2570, paid_amount: 0, payment_status: 'Pending', created_at: addDays(0) },
+    { id: 'invoice-4', invoice_number: 'INV-AYU-004', patient_id: 'patient-3', patient_name: 'Prakash Menon', bill_type: 'IPD', consultation: 0, medicines: 2100, treatment_packages: 0, panchakarma: 1300, therapies: 6400, discount: 0, total_amount: 9800, paid_amount: 9800, payment_status: 'Paid', created_at: addDays(-8) },
+  ]
+
+  return {
+    clinic: {
+      name: 'BlueCare Ayurvedic Clinic',
+      tagline: 'Daily Ayurvedic OPD, IPD, pharmacy, and therapy operations in one workspace.',
+      location: 'Bengaluru, India',
+      contact: '+91 80000 12211',
+    },
+    users,
+    patients,
+    visitPlanner,
+    opdConsultations,
+    ipdAdmissions,
+    diseaseMaster,
+    medicineCatalog,
+    packages,
+    suppliers,
+    purchases,
+    invoices,
+    systemSettings: {
+      low_stock_threshold: 25,
+      near_expiry_days: 45,
+      clinic_hours: '08:30 - 18:30',
+      receipt_footer: 'Demo receipt only. Not for live clinical or financial operations.',
+      backup_note: 'Local browser backup only.',
+      supported_units: ['Tablet', 'Capsule', 'Powder (gm)', 'Churna', 'Syrup (ml)', 'Oil (ml)', 'Drops', 'Sachet', 'Bottle', 'Jar', 'Tube', 'Pack'],
+    },
+  }
+}
+
+export const fallbackEmrData = buildFallbackClinicData()

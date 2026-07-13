@@ -1,6 +1,6 @@
-import { fallbackEmrData } from '../data/fallback'
+import { buildFallbackClinicData, fallbackEmrData } from '../data/fallback'
 
-const STORAGE_KEY = 'bluecare-emr-workspace'
+const STORAGE_KEY = 'bluecare-ayurvedic-clinic-workspace'
 
 function cloneData(data) {
   return JSON.parse(JSON.stringify(data))
@@ -14,220 +14,201 @@ function getMonthPrefix(dateString) {
   return String(dateString || getToday()).slice(0, 7)
 }
 
-function sortByNewest(left, right, field) {
-  return String(right[field] || '').localeCompare(String(left[field] || ''))
+function daysUntil(dateString) {
+  const today = new Date(getToday())
+  const target = new Date(dateString)
+  return Math.ceil((target - today) / (1000 * 60 * 60 * 24))
+}
+
+function sumInvoices(invoices, filterFn) {
+  return invoices
+    .filter(filterFn)
+    .reduce((sum, invoice) => sum + Number(invoice.total_amount || 0), 0)
 }
 
 function buildDashboard(data) {
   const today = getToday()
-  const monthPrefix = getMonthPrefix(today)
-
-  const todaysAppointments = data.appointments.filter(
-    (appointment) => appointment.appointment_date === today,
-  )
-
-  const upcomingAppointments = [...data.appointments]
-    .filter((appointment) => appointment.appointment_date >= today)
+  const todaysAppointments = data.visitPlanner
+    .filter((visit) => visit.appointment_date === today)
     .sort((left, right) =>
       `${left.appointment_date} ${left.appointment_time}`.localeCompare(
         `${right.appointment_date} ${right.appointment_time}`,
       ),
     )
-    .slice(0, 5)
 
-  const recentPatients = [...data.patients]
-    .sort((left, right) => sortByNewest(left, right, 'updated_at'))
+  const admittedPatients = data.ipdAdmissions.filter((admission) => admission.status === 'Admitted')
+  const lowStockMedicines = data.medicineCatalog.filter(
+    (medicine) =>
+      Number(medicine.current_stock || 0) > 0 &&
+      Number(medicine.current_stock || 0) <= Number(medicine.low_stock_level || 0),
+  )
+  const expiringMedicines = data.medicineCatalog.filter((medicine) => {
+    const remainingDays = daysUntil(medicine.expiry_date)
+    return remainingDays >= 0 && remainingDays <= Number(data.systemSettings.near_expiry_days || 45)
+  })
+  const followUpPatients = data.patients
+    .filter((patient) => patient.follow_up_date >= today)
+    .sort((left, right) => String(left.follow_up_date).localeCompare(String(right.follow_up_date)))
+    .slice(0, 6)
+  const recentConsultations = [...data.opdConsultations]
+    .sort((left, right) => String(right.consultation_date).localeCompare(String(left.consultation_date)))
     .slice(0, 5)
-    .map((patient) => ({
-      id: patient.id,
-      full_name: patient.full_name,
-      activity:
-        patient.conditions?.trim() ||
-        patient.medical_history?.trim() ||
-        'Profile reviewed and ready for the next visit.',
-      updated_at: patient.updated_at || today,
-    }))
-
-  const monthlyRevenue = data.invoices
-    .filter((invoice) => getMonthPrefix(invoice.created_at) === monthPrefix)
-    .reduce((sum, invoice) => sum + Number(invoice.total_amount || 0), 0)
 
   return {
-    totalPatients: data.patients.length,
-    todaysAppointments: todaysAppointments.length,
-    activeDoctors: data.doctors.filter((doctor) => doctor.status === 'Active').length,
-    monthlyRevenue,
-    upcomingAppointments,
-    recentPatients,
+    todaysAppointments,
+    opdPatientCount: todaysAppointments.filter((visit) => visit.visit_type !== 'Therapy Planning').length,
+    ipdPatientCount: admittedPatients.length,
+    revenueSummary: {
+      today: sumInvoices(data.invoices, (invoice) => invoice.created_at === today),
+      monthly: sumInvoices(data.invoices, (invoice) => getMonthPrefix(invoice.created_at) === getMonthPrefix(today)),
+      outstanding: data.invoices.reduce(
+        (sum, invoice) => sum + Math.max(0, Number(invoice.total_amount || 0) - Number(invoice.paid_amount || 0)),
+        0,
+      ),
+    },
+    lowStockMedicines,
+    expiringMedicines,
+    followUpPatients,
+    recentConsultations,
+    quickActions: [
+      { key: 'VisitPlanner', label: 'Schedule Visit' },
+      { key: 'OPD', label: 'New Consultation' },
+      { key: 'Inventory', label: 'Stock Adjustment' },
+      { key: 'Billing', label: 'Create Invoice' },
+    ],
   }
 }
 
 function buildReports(data) {
-  const totalCollected = data.invoices.reduce(
-    (sum, invoice) => sum + Number(invoice.paid_amount || 0),
-    0,
-  )
-  const outstanding = data.invoices.reduce(
-    (sum, invoice) =>
-      sum + (Number(invoice.total_amount || 0) - Number(invoice.paid_amount || 0)),
-    0,
-  )
-  const averageInvoice = data.invoices.length
-    ? Math.round(
-        data.invoices.reduce((sum, invoice) => sum + Number(invoice.total_amount || 0), 0) /
-          data.invoices.length,
-      )
-    : 0
+  const today = getToday()
+  const monthPrefix = getMonthPrefix(today)
+  const lowStockCount = data.medicineCatalog.filter(
+    (medicine) => Number(medicine.current_stock || 0) <= Number(medicine.low_stock_level || 0),
+  ).length
+  const expiryCount = data.medicineCatalog.filter((medicine) => daysUntil(medicine.expiry_date) <= 45).length
 
   return {
-    patientReport: [
-      { label: 'New patients this month', value: data.patients.length },
-      {
-        label: 'Patients with follow-up due',
-        value: data.appointments.filter((appointment) => appointment.status === 'Scheduled').length,
-      },
-      {
-        label: 'Patients with allergies recorded',
-        value: data.patients.filter((patient) => patient.allergies && patient.allergies !== 'None').length,
-      },
-    ],
-    appointmentReport: [
-      {
-        label: 'Completed appointments',
-        value: data.appointments.filter((appointment) => appointment.status === 'Completed').length,
-      },
-      {
-        label: 'Cancelled appointments',
-        value: data.appointments.filter((appointment) => appointment.status === 'Cancelled').length,
-      },
-      {
-        label: 'Checked in today',
-        value: data.appointments.filter((appointment) => appointment.status === 'Checked In').length,
-      },
-    ],
-    revenueReport: [
-      { label: 'Collected revenue', value: totalCollected },
-      { label: 'Outstanding balance', value: outstanding },
-      { label: 'Average invoice value', value: averageInvoice },
-    ],
-    doctorActivityReport: data.doctors.map((doctor) => ({
-      label: doctor.full_name,
-      value: data.consultations.filter((consultation) => consultation.doctor_id === doctor.id).length,
-    })),
+    dailyRevenue: sumInvoices(data.invoices, (invoice) => invoice.created_at === today),
+    monthlyRevenue: sumInvoices(data.invoices, (invoice) => getMonthPrefix(invoice.created_at) === monthPrefix),
+    patientVisits: data.visitPlanner.length,
+    medicineSales: data.invoices.reduce((sum, invoice) => sum + Number(invoice.medicines || 0), 0),
+    inventoryValue: data.medicineCatalog.reduce(
+      (sum, medicine) => sum + Number(medicine.current_stock || 0) * Number(medicine.purchase_price || 0),
+      0,
+    ),
+    lowStock: lowStockCount,
+    expiry: expiryCount,
+    packageSales: data.invoices.reduce((sum, invoice) => sum + Number(invoice.treatment_packages || 0), 0),
+    opdStatistics: data.opdConsultations.length,
+    ipdStatistics: data.ipdAdmissions.length,
   }
 }
 
 function buildNotifications(data) {
   const today = getToday()
-  const items = []
-
-  const upcoming = data.appointments
-    .filter((appointment) => appointment.appointment_date >= today)
+  const upcomingAppointments = data.visitPlanner
+    .filter((visit) => visit.appointment_date >= today && visit.status !== 'Cancelled')
     .sort((left, right) =>
       `${left.appointment_date} ${left.appointment_time}`.localeCompare(
         `${right.appointment_date} ${right.appointment_time}`,
       ),
     )
-    .slice(0, 2)
-
-  upcoming.forEach((appointment, index) => {
-    items.push({
-      id: index + 1,
-      title: 'Upcoming visit',
-      message: `${appointment.patient_name} is booked with ${appointment.doctor_name} at ${appointment.appointment_time}.`,
+    .slice(0, 3)
+    .map((visit) => ({
+      id: `appointment-${visit.id}`,
+      title: 'Upcoming appointment',
+      message: `${visit.patient_name} is booked with ${visit.doctor_name} on ${visit.appointment_date} at ${visit.appointment_time}.`,
       type: 'appointment',
-    })
-  })
+    }))
 
-  const followUp = data.patients.find((patient) => patient.conditions)
-  if (followUp) {
-    items.push({
-      id: items.length + 1,
+  const followUps = data.patients
+    .filter((patient) => {
+      const remainingDays = daysUntil(patient.follow_up_date)
+      return remainingDays >= 0 && remainingDays <= 7
+    })
+    .slice(0, 3)
+    .map((patient) => ({
+      id: `followup-${patient.id}`,
       title: 'Follow-up reminder',
-      message: `${followUp.full_name} needs a review for ${followUp.conditions}.`,
+      message: `${patient.name} has follow-up due on ${patient.follow_up_date}.`,
       type: 'follow-up',
-    })
-  }
+    }))
 
-  const pendingInvoice = data.invoices.find(
-    (invoice) => Number(invoice.total_amount || 0) > Number(invoice.paid_amount || 0),
-  )
-  if (pendingInvoice) {
-    items.push({
-      id: items.length + 1,
-      title: 'Payment reminder',
-      message: `${pendingInvoice.patient_name} still has a balance on ${pendingInvoice.invoice_number}.`,
-      type: 'billing',
+  const packageExpiry = data.packages
+    .filter((item) => {
+      const remainingDays = daysUntil(item.auto_renewal_reminder)
+      return remainingDays >= 0 && remainingDays <= 21
     })
-  }
+    .map((item) => ({
+      id: `package-${item.id}`,
+      title: 'Package expiry reminder',
+      message: `${item.name} package renewal reminder is scheduled for ${item.auto_renewal_reminder}.`,
+      type: 'package',
+    }))
 
-  return items
+  const stockAlerts = data.medicineCatalog
+    .filter(
+      (medicine) =>
+        Number(medicine.current_stock || 0) <= Number(medicine.low_stock_level || 0) ||
+        daysUntil(medicine.expiry_date) <= Number(data.systemSettings.near_expiry_days || 45),
+    )
+    .slice(0, 4)
+    .map((medicine) => ({
+      id: `stock-${medicine.id}`,
+      title: 'Stock warning',
+      message: `${medicine.medicine_name} has stock ${medicine.current_stock} and expiry ${medicine.expiry_date}.`,
+      type: 'inventory',
+    }))
+
+  return [...upcomingAppointments, ...followUps, ...packageExpiry, ...stockAlerts]
 }
 
 function hydrateWorkspace(rawData) {
-  const data = cloneData(rawData)
-
+  const baseData = cloneData(rawData)
   return {
-    ...data,
-    dashboard: buildDashboard(data),
-    reports: buildReports(data),
-    notifications: buildNotifications(data),
+    ...baseData,
+    dashboard: buildDashboard(baseData),
+    reports: buildReports(baseData),
+    notifications: buildNotifications(baseData),
   }
 }
 
-function saveWorkspace(data) {
-  const hydrated = hydrateWorkspace(data)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(hydrated))
-  return hydrated
+function isClinicWorkspace(data) {
+  return Boolean(
+    data &&
+      Array.isArray(data.patients) &&
+      Array.isArray(data.visitPlanner) &&
+      Array.isArray(data.opdConsultations) &&
+      Array.isArray(data.ipdAdmissions) &&
+      Array.isArray(data.medicineCatalog) &&
+      Array.isArray(data.packages),
+  )
+}
+
+export function saveWorkspaceData(data) {
+  const nextData = hydrateWorkspace(data)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData))
+  return nextData
 }
 
 export async function loadWorkspaceData() {
-  const saved = localStorage.getItem(STORAGE_KEY)
-
-  if (!saved) {
-    return saveWorkspace(fallbackEmrData)
+  const savedValue = localStorage.getItem(STORAGE_KEY)
+  if (!savedValue) {
+    return saveWorkspaceData(fallbackEmrData)
   }
 
   try {
-    return hydrateWorkspace(JSON.parse(saved))
+    const parsed = JSON.parse(savedValue)
+    if (!isClinicWorkspace(parsed)) {
+      return saveWorkspaceData(buildFallbackClinicData())
+    }
+    return hydrateWorkspace(parsed)
   } catch {
-    return saveWorkspace(fallbackEmrData)
-  }
-}
-
-export async function createRecord(collection, payload) {
-  const workspace = await loadWorkspaceData()
-  const items = workspace[collection] || []
-  const record = { id: nextId(items), ...payload }
-
-  return {
-    record,
-    data: saveWorkspace({
-      ...workspace,
-      [collection]: [record, ...items],
-    }),
-  }
-}
-
-export async function updateRecord(collection, id, payload) {
-  const workspace = await loadWorkspaceData()
-  const items = workspace[collection] || []
-  const updatedItems = items.map((item) => (item.id === id ? { ...item, ...payload } : item))
-
-  return {
-    record: updatedItems.find((item) => item.id === id),
-    data: saveWorkspace({
-      ...workspace,
-      [collection]: updatedItems,
-    }),
+    return saveWorkspaceData(buildFallbackClinicData())
   }
 }
 
 export async function resetWorkspaceData() {
   localStorage.removeItem(STORAGE_KEY)
-  return saveWorkspace(fallbackEmrData)
-}
-
-function nextId(items) {
-  return items.reduce((maxId, item) => Math.max(maxId, Number(item.id || 0)), 0) + 1
+  return saveWorkspaceData(buildFallbackClinicData())
 }
