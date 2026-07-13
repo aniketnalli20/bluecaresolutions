@@ -14,7 +14,8 @@ This frontend is the Vite + React client for the S.V. Kini Ayurvedic clinic work
 - Medicine catalog, inventory alerts, suppliers, and purchases
 - Packages, invoices, reports, notifications, and clinic admin tools
 - Dark and light mode with clinic UI styling
-- Supabase-backed storage when `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are configured
+- Supabase-backed storage and authentication when `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are configured
+- Seeded first-run clinic access profiles, including `admin@svkini.clinic` for the first admin setup
 
 ## Deployment Notes
 

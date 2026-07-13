@@ -77,8 +77,15 @@ npm run dev
 
 On first load with valid Supabase credentials and empty tables:
 
-- the app seeds the Ayurvedic clinic demo workspace into Supabase
+- the app seeds the Ayurvedic clinic demo workspace into Supabase only for prepared clinic emails
 - subsequent saves write to Supabase first and keep a local cache for resilience
+
+Prepared first-run emails:
+
+- `admin@svkini.clinic`
+- `kavya.iyer@svkini.clinic`
+- `rohan.sharma@svkini.clinic`
+- `anjali.das@svkini.clinic`
 
 ## 5. Configure Supabase Auth
 
@@ -100,6 +107,12 @@ Password reset and email confirmation links return to the React app, which now s
 - forgot password
 - update password after recovery link
 
+Recommended first admin setup:
+
+- use `admin@svkini.clinic`
+- create the Supabase account from the auth screen using the seeded access card
+- sign in again after confirmation if your project requires email confirmation
+
 ## 6. Auth and Clinic User Mapping
 
 The workspace is now protected when Supabase credentials are configured.
@@ -119,16 +132,20 @@ Important admin rule:
 
 ## 7. Current Security Posture
 
-The schema enables RLS on all new tables and grants Data API access explicitly, but the current policies allow broad `anon` and `authenticated` CRUD so the existing frontend can work without redesigning auth.
+The schema now enforces authenticated clinic access only.
 
-That is acceptable only for demo and development migration.
+Current policy model:
 
-Before production:
+- `anon` no longer has CRUD access to clinic tables
+- authenticated users must match an active clinic user by `auth_user_id` or clinic email
+- `Clinic Administrator` and `Chief Ayurvedic Physician` can manage admin-owned tables
+- operational tables remain available to authenticated clinic members inside the same clinic
+- first-run bootstrap is allowed only for the prepared clinic emails listed above when the clinic has no users yet
 
-- restrict write access to authenticated users only
-- add ownership or role-based policies
-- stop allowing public anonymous write access
-- connect clinic user roles to `auth_user_id`
+Production note:
+
+- this is significantly safer than the earlier demo-wide CRUD setup
+- if you later add multiple clinics or server-side admin actions, extend the policies again instead of widening them
 
 ## 8. Files Added for the Migration
 

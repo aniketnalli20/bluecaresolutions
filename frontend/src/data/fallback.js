@@ -253,6 +253,16 @@ export function buildFallbackClinicData() {
 
   const users = [
     {
+      id: 'user-admin',
+      name: 'Clinic Administrator',
+      email: 'admin@svkini.clinic',
+      role: 'Clinic Administrator',
+      status: 'Active',
+      phone: '+91 98980 11220',
+      shift: '08:00 - 18:00',
+      allowed_views: ['Dashboard', 'Patients', 'VisitPlanner', 'OPD', 'IPD', 'DiseaseMaster', 'Medicines', 'Packages', 'Inventory', 'Billing', 'Reports', 'Notifications', 'Admin'],
+    },
+    {
       id: 'user-1',
       name: 'Dr. Kavya Iyer',
       email: 'kavya.iyer@svkini.clinic',

@@ -239,6 +239,92 @@ create index if not exists idx_treatment_packages_clinic_name on public.treatmen
 create index if not exists idx_purchases_clinic_date on public.purchases (clinic_id, purchase_date desc);
 create index if not exists idx_invoices_clinic_date on public.invoices (clinic_id, created_at desc);
 
+create schema if not exists private;
+
+revoke all on schema private from public;
+grant usage on schema private to authenticated, service_role;
+
+create or replace function private.is_seeded_bootstrap_email()
+returns boolean
+language sql
+stable
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', '')) = any (
+    array[
+      'admin@svkini.clinic',
+      'kavya.iyer@svkini.clinic',
+      'rohan.sharma@svkini.clinic',
+      'anjali.das@svkini.clinic'
+    ]
+  );
+$$;
+
+create or replace function private.is_current_clinic_member(target_clinic_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.clinic_users as clinic_user
+    where clinic_user.clinic_id = target_clinic_id
+      and clinic_user.status = 'Active'
+      and (
+        clinic_user.auth_user_id = (select auth.uid())
+        or lower(clinic_user.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
+  );
+$$;
+
+create or replace function private.is_current_clinic_admin(target_clinic_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.clinic_users as clinic_user
+    where clinic_user.clinic_id = target_clinic_id
+      and clinic_user.status = 'Active'
+      and clinic_user.role in ('Clinic Administrator', 'Chief Ayurvedic Physician')
+      and (
+        clinic_user.auth_user_id = (select auth.uid())
+        or lower(clinic_user.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      )
+  );
+$$;
+
+create or replace function private.is_clinic_bootstrap_open(target_clinic_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth, pg_temp
+as $$
+  select
+    (select auth.uid()) is not null
+    and private.is_seeded_bootstrap_email()
+    and not exists (
+      select 1
+      from public.clinic_users as clinic_user
+      where clinic_user.clinic_id = target_clinic_id
+    );
+$$;
+
+revoke all on function private.is_seeded_bootstrap_email() from public;
+revoke all on function private.is_current_clinic_member(text) from public;
+revoke all on function private.is_current_clinic_admin(text) from public;
+revoke all on function private.is_clinic_bootstrap_open(text) from public;
+
+grant execute on function private.is_seeded_bootstrap_email() to authenticated, service_role;
+grant execute on function private.is_current_clinic_member(text) to authenticated, service_role;
+grant execute on function private.is_current_clinic_admin(text) to authenticated, service_role;
+grant execute on function private.is_clinic_bootstrap_open(text) to authenticated, service_role;
+
 do $$
 declare
   table_name text;
@@ -260,16 +346,14 @@ begin
       'invoices'
     ])
   loop
-    execute format('grant select, insert, update, delete on public.%I to anon, authenticated', table_name);
+    execute format('revoke all on public.%I from anon', table_name);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', table_name);
+    execute format('grant select, insert, update, delete on public.%I to service_role', table_name);
     execute format('alter table public.%I enable row level security', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_select', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_insert', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_update', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_delete', table_name);
-    execute format('create policy %I on public.%I for select to anon, authenticated using (true)', table_name || '_select', table_name);
-    execute format('create policy %I on public.%I for insert to anon, authenticated with check (true)', table_name || '_insert', table_name);
-    execute format('create policy %I on public.%I for update to anon, authenticated using (true) with check (true)', table_name || '_update', table_name);
-    execute format('create policy %I on public.%I for delete to anon, authenticated using (true)', table_name || '_delete', table_name);
     execute format('drop trigger if exists set_%I_updated_at on public.%I', table_name, table_name);
     execute format(
       'create trigger set_%I_updated_at before update on public.%I for each row execute function public.set_updated_at()',
@@ -280,6 +364,411 @@ begin
 end
 $$;
 
+drop policy if exists clinic_profile_member_select on public.clinic_profile;
+drop policy if exists clinic_profile_bootstrap_insert on public.clinic_profile;
+drop policy if exists clinic_profile_admin_update on public.clinic_profile;
+drop policy if exists clinic_profile_admin_delete on public.clinic_profile;
+
+create policy clinic_profile_member_select
+on public.clinic_profile
+for select
+to authenticated
+using (
+  private.is_current_clinic_member(id)
+  or private.is_clinic_bootstrap_open(id)
+);
+
+create policy clinic_profile_bootstrap_insert
+on public.clinic_profile
+for insert
+to authenticated
+with check (private.is_clinic_bootstrap_open(id));
+
+create policy clinic_profile_admin_update
+on public.clinic_profile
+for update
+to authenticated
+using (private.is_current_clinic_admin(id))
+with check (private.is_current_clinic_admin(id));
+
+create policy clinic_profile_admin_delete
+on public.clinic_profile
+for delete
+to authenticated
+using (private.is_current_clinic_admin(id));
+
+drop policy if exists system_settings_member_select on public.system_settings;
+drop policy if exists system_settings_bootstrap_insert on public.system_settings;
+drop policy if exists system_settings_admin_update on public.system_settings;
+drop policy if exists system_settings_admin_delete on public.system_settings;
+
+create policy system_settings_member_select
+on public.system_settings
+for select
+to authenticated
+using (
+  private.is_current_clinic_member(clinic_id)
+  or private.is_clinic_bootstrap_open(clinic_id)
+);
+
+create policy system_settings_bootstrap_insert
+on public.system_settings
+for insert
+to authenticated
+with check (
+  private.is_clinic_bootstrap_open(clinic_id)
+  or private.is_current_clinic_admin(clinic_id)
+);
+
+create policy system_settings_admin_update
+on public.system_settings
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy system_settings_admin_delete
+on public.system_settings
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
+drop policy if exists clinic_users_member_select on public.clinic_users;
+drop policy if exists clinic_users_bootstrap_or_admin_insert on public.clinic_users;
+drop policy if exists clinic_users_admin_update on public.clinic_users;
+drop policy if exists clinic_users_admin_delete on public.clinic_users;
+
+create policy clinic_users_member_select
+on public.clinic_users
+for select
+to authenticated
+using (
+  private.is_current_clinic_member(clinic_id)
+  or private.is_clinic_bootstrap_open(clinic_id)
+);
+
+create policy clinic_users_bootstrap_or_admin_insert
+on public.clinic_users
+for insert
+to authenticated
+with check (
+  private.is_clinic_bootstrap_open(clinic_id)
+  or private.is_current_clinic_admin(clinic_id)
+);
+
+create policy clinic_users_admin_update
+on public.clinic_users
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy clinic_users_admin_delete
+on public.clinic_users
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
+drop policy if exists patients_member_select on public.patients;
+drop policy if exists patients_member_insert on public.patients;
+drop policy if exists patients_member_update on public.patients;
+drop policy if exists patients_member_delete on public.patients;
+
+create policy patients_member_select
+on public.patients
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy patients_member_insert
+on public.patients
+for insert
+to authenticated
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy patients_member_update
+on public.patients
+for update
+to authenticated
+using (private.is_current_clinic_member(clinic_id))
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy patients_member_delete
+on public.patients
+for delete
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+drop policy if exists visit_planner_member_select on public.visit_planner;
+drop policy if exists visit_planner_member_insert on public.visit_planner;
+drop policy if exists visit_planner_member_update on public.visit_planner;
+drop policy if exists visit_planner_member_delete on public.visit_planner;
+
+create policy visit_planner_member_select
+on public.visit_planner
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy visit_planner_member_insert
+on public.visit_planner
+for insert
+to authenticated
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy visit_planner_member_update
+on public.visit_planner
+for update
+to authenticated
+using (private.is_current_clinic_member(clinic_id))
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy visit_planner_member_delete
+on public.visit_planner
+for delete
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+drop policy if exists opd_consultations_member_select on public.opd_consultations;
+drop policy if exists opd_consultations_member_insert on public.opd_consultations;
+drop policy if exists opd_consultations_member_update on public.opd_consultations;
+drop policy if exists opd_consultations_member_delete on public.opd_consultations;
+
+create policy opd_consultations_member_select
+on public.opd_consultations
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy opd_consultations_member_insert
+on public.opd_consultations
+for insert
+to authenticated
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy opd_consultations_member_update
+on public.opd_consultations
+for update
+to authenticated
+using (private.is_current_clinic_member(clinic_id))
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy opd_consultations_member_delete
+on public.opd_consultations
+for delete
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+drop policy if exists ipd_admissions_member_select on public.ipd_admissions;
+drop policy if exists ipd_admissions_member_insert on public.ipd_admissions;
+drop policy if exists ipd_admissions_member_update on public.ipd_admissions;
+drop policy if exists ipd_admissions_member_delete on public.ipd_admissions;
+
+create policy ipd_admissions_member_select
+on public.ipd_admissions
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy ipd_admissions_member_insert
+on public.ipd_admissions
+for insert
+to authenticated
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy ipd_admissions_member_update
+on public.ipd_admissions
+for update
+to authenticated
+using (private.is_current_clinic_member(clinic_id))
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy ipd_admissions_member_delete
+on public.ipd_admissions
+for delete
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+drop policy if exists invoices_member_select on public.invoices;
+drop policy if exists invoices_member_insert on public.invoices;
+drop policy if exists invoices_member_update on public.invoices;
+drop policy if exists invoices_member_delete on public.invoices;
+
+create policy invoices_member_select
+on public.invoices
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy invoices_member_insert
+on public.invoices
+for insert
+to authenticated
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy invoices_member_update
+on public.invoices
+for update
+to authenticated
+using (private.is_current_clinic_member(clinic_id))
+with check (private.is_current_clinic_member(clinic_id));
+
+create policy invoices_member_delete
+on public.invoices
+for delete
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+drop policy if exists disease_master_member_select on public.disease_master;
+drop policy if exists disease_master_admin_insert on public.disease_master;
+drop policy if exists disease_master_admin_update on public.disease_master;
+drop policy if exists disease_master_admin_delete on public.disease_master;
+
+create policy disease_master_member_select
+on public.disease_master
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy disease_master_admin_insert
+on public.disease_master
+for insert
+to authenticated
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy disease_master_admin_update
+on public.disease_master
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy disease_master_admin_delete
+on public.disease_master
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
+drop policy if exists suppliers_member_select on public.suppliers;
+drop policy if exists suppliers_admin_insert on public.suppliers;
+drop policy if exists suppliers_admin_update on public.suppliers;
+drop policy if exists suppliers_admin_delete on public.suppliers;
+
+create policy suppliers_member_select
+on public.suppliers
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy suppliers_admin_insert
+on public.suppliers
+for insert
+to authenticated
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy suppliers_admin_update
+on public.suppliers
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy suppliers_admin_delete
+on public.suppliers
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
+drop policy if exists medicine_catalog_member_select on public.medicine_catalog;
+drop policy if exists medicine_catalog_admin_insert on public.medicine_catalog;
+drop policy if exists medicine_catalog_admin_update on public.medicine_catalog;
+drop policy if exists medicine_catalog_admin_delete on public.medicine_catalog;
+
+create policy medicine_catalog_member_select
+on public.medicine_catalog
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy medicine_catalog_admin_insert
+on public.medicine_catalog
+for insert
+to authenticated
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy medicine_catalog_admin_update
+on public.medicine_catalog
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy medicine_catalog_admin_delete
+on public.medicine_catalog
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
+drop policy if exists treatment_packages_member_select on public.treatment_packages;
+drop policy if exists treatment_packages_admin_insert on public.treatment_packages;
+drop policy if exists treatment_packages_admin_update on public.treatment_packages;
+drop policy if exists treatment_packages_admin_delete on public.treatment_packages;
+
+create policy treatment_packages_member_select
+on public.treatment_packages
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy treatment_packages_admin_insert
+on public.treatment_packages
+for insert
+to authenticated
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy treatment_packages_admin_update
+on public.treatment_packages
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy treatment_packages_admin_delete
+on public.treatment_packages
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
+drop policy if exists purchases_member_select on public.purchases;
+drop policy if exists purchases_admin_insert on public.purchases;
+drop policy if exists purchases_admin_update on public.purchases;
+drop policy if exists purchases_admin_delete on public.purchases;
+
+create policy purchases_member_select
+on public.purchases
+for select
+to authenticated
+using (private.is_current_clinic_member(clinic_id));
+
+create policy purchases_admin_insert
+on public.purchases
+for insert
+to authenticated
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy purchases_admin_update
+on public.purchases
+for update
+to authenticated
+using (private.is_current_clinic_admin(clinic_id))
+with check (private.is_current_clinic_admin(clinic_id));
+
+create policy purchases_admin_delete
+on public.purchases
+for delete
+to authenticated
+using (private.is_current_clinic_admin(clinic_id));
+
 comment on table public.clinic_profile is
 'Single-clinic profile table for the S.V. Kini Ayurvedic clinic workspace.';
 
@@ -287,4 +776,4 @@ comment on table public.clinic_users is
 'Clinic user table. auth_user_id can be linked to a Supabase auth user for session-based role mapping.';
 
 comment on schema public is
-'Demo single-clinic schema. Current RLS policies allow anon/authenticated CRUD for frontend-only migration compatibility and should be tightened before production use.';
+'Single-clinic schema for the S.V. Kini Ayurvedic clinic workspace. RLS now allows authenticated clinic members only, with admin-only mutation on admin-managed tables.';

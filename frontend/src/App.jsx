@@ -221,6 +221,27 @@ const adminSections = [
   { key: 'backup', label: 'Backup & Restore' },
 ]
 
+const seededAccessProfiles = [
+  {
+    fullName: 'Clinic Administrator',
+    email: 'admin@svkini.clinic',
+    role: 'Clinic Administrator',
+    note: 'Use this for the first full-access admin account setup.',
+  },
+  {
+    fullName: 'Dr. Kavya Iyer',
+    email: 'kavya.iyer@svkini.clinic',
+    role: 'Chief Ayurvedic Physician',
+    note: 'Doctor access with clinical and admin workspace permissions.',
+  },
+  {
+    fullName: 'Anjali Das',
+    email: 'anjali.das@svkini.clinic',
+    role: 'Front Desk Coordinator',
+    note: 'Front desk access for patients, visits, billing, and reminders.',
+  },
+]
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -676,6 +697,19 @@ function App() {
   )
   const canSwitchUsers = !hasSupabaseConfig
   const resolvedActiveView = accessibleViewSet.has(activeView) ? activeView : accessibleNavItems[0]?.key || 'Dashboard'
+  const administratorUsers = useMemo(
+    () => users.filter((user) => ['Clinic Administrator', 'Chief Ayurvedic Physician'].includes(user.role)),
+    [users],
+  )
+  const linkedAuthUsers = useMemo(() => users.filter((user) => user.auth_user_id), [users])
+  const pendingAuthUsers = useMemo(
+    () => users.filter((user) => user.email && !user.auth_user_id),
+    [users],
+  )
+  const activeClinicUsers = useMemo(
+    () => users.filter((user) => user.status === 'Active'),
+    [users],
+  )
 
   useEffect(() => {
     if (!hasSupabaseConfig || !workspace || !authenticatedClinicUser) {
@@ -1225,6 +1259,32 @@ function App() {
     } finally {
       setAuthBusy(false)
     }
+  }, [])
+
+  const handlePrepareSeededAccess = useCallback((profile) => {
+    setAuthMode('sign-up')
+    setAuthError('')
+    setAuthNotice(`Ready to create access for ${profile.email}.`)
+    setAuthForm((current) => ({
+      ...current,
+      fullName: profile.fullName,
+      email: profile.email,
+      resetEmail: profile.email,
+      password: '',
+      confirmPassword: '',
+    }))
+  }, [])
+
+  const handlePrepareAdminTemplate = useCallback(() => {
+    setUserForm({
+      name: 'Clinic Administrator',
+      email: 'admin@svkini.clinic',
+      role: 'Clinic Administrator',
+      status: 'Active',
+      phone: '+91 ',
+      shift: '08:00 - 18:00',
+      allowed_views: [...fullAccessKeys],
+    })
   }, [])
 
   const handleSearchSelection = useCallback(
@@ -2842,6 +2902,11 @@ function App() {
               </Panel>
               <Panel title="Add User" subtitle="Create clinic users and assign module access at the same time.">
                 <form className="form-grid" onSubmit={handleUserSubmit}>
+                  <div className="full-span action-row">
+                    <button type="button" className="ghost-button" onClick={handlePrepareAdminTemplate}>
+                      Use Admin Template
+                    </button>
+                  </div>
                   <input value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} placeholder="User name" required />
                   <input
                     type="email"
@@ -3154,6 +3219,42 @@ function App() {
                   <StatCard key={item.label} label={item.label} value={item.value} tone={item.tone} />
                 ))}
               </div>
+              <div className="split-grid">
+                <Panel title="Authentication Readiness" subtitle="Quick visibility into which clinic users are ready for Supabase sign-in.">
+                  <div className="card-grid two admin-compact-grid">
+                    <StatCard label="Administrators" value={administratorUsers.length} tone="primary" />
+                    <StatCard label="Active Users" value={activeClinicUsers.length} tone="success" />
+                    <StatCard label="Linked Auth Users" value={linkedAuthUsers.length} tone="info" />
+                    <StatCard label="Pending Links" value={pendingAuthUsers.length} tone="warning" />
+                  </div>
+                </Panel>
+                <Panel title="First Admin Setup" subtitle="Use the seeded admin email to create the first full-access Supabase account quickly.">
+                  <div className="list-stack">
+                    <div className="access-card">
+                      <div className="list-card-header">
+                        <div>
+                          <strong>Clinic Administrator</strong>
+                          <small>admin@svkini.clinic</small>
+                        </div>
+                        <StatusPill value="Recommended" tone="primary" />
+                      </div>
+                      <p>Create the Supabase account with this exact email, then sign in to open all clinic admin tools immediately.</p>
+                    </div>
+                    {administratorUsers.map((user) => (
+                      <div key={user.id} className="access-card">
+                        <div className="list-card-header">
+                          <div>
+                            <strong>{user.name}</strong>
+                            <small>{user.email || 'No email assigned'}</small>
+                          </div>
+                          <StatusPill value={user.auth_user_id ? 'Linked' : 'Pending'} tone={user.auth_user_id ? 'success' : 'warning'} />
+                        </div>
+                        <p>{user.role} | {normalizeAccessList(user.allowed_views, user.role).length} modules enabled</p>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              </div>
             </div>
           )
       }
@@ -3292,6 +3393,19 @@ function App() {
           </div>
           {authError ? <div className="auth-banner error">{authError}</div> : null}
           {authNotice ? <div className="auth-banner success">{authNotice}</div> : null}
+          <div className="auth-note">
+            <strong>Seeded access profiles</strong>
+            <small>Use one of the prepared clinic emails below, especially the administrator profile for the first setup.</small>
+          </div>
+          <div className="auth-profile-grid">
+            {seededAccessProfiles.map((profile) => (
+              <button key={profile.email} type="button" className="auth-profile-card" onClick={() => handlePrepareSeededAccess(profile)}>
+                <strong>{profile.fullName}</strong>
+                <small>{profile.role}</small>
+                <small>{profile.email}</small>
+              </button>
+            ))}
+          </div>
           {authMode === 'sign-in' ? (
             <form className="auth-form" onSubmit={handleAuthSignIn}>
               <input

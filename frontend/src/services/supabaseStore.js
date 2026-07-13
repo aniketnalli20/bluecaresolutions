@@ -28,6 +28,43 @@ function normalizeArray(value) {
   return Array.isArray(value) ? value : []
 }
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function applySessionLink(data, sessionUser) {
+  const sessionEmail = normalizeEmail(sessionUser?.email)
+  if (!sessionUser?.id || !sessionEmail) {
+    return data
+  }
+
+  let matchedUserId = null
+  const users = data.users.map((user) => {
+    if (user.auth_user_id === sessionUser.id) {
+      matchedUserId = user.id
+      return user
+    }
+
+    if (!matchedUserId && normalizeEmail(user.email) === sessionEmail) {
+      matchedUserId = user.id
+      return {
+        ...user,
+        auth_user_id: sessionUser.id,
+      }
+    }
+
+    return user
+  })
+
+  return matchedUserId
+    ? {
+        ...data,
+        currentUserId: matchedUserId,
+        users,
+      }
+    : data
+}
+
 function buildClinicPayload(data) {
   return {
     id: CLINIC_WORKSPACE_ID,
@@ -413,7 +450,8 @@ export async function saveSupabaseWorkspaceData(workspace) {
     return hydrateWorkspace(workspace)
   }
 
-  const nextData = hydrateWorkspace(cloneData(workspace))
+  const sessionUser = await getSupabaseSessionUser().catch(() => null)
+  const nextData = applySessionLink(hydrateWorkspace(cloneData(workspace)), sessionUser)
   const rows = mapRows(nextData)
 
   const { error: clinicError } = await supabase.from(TABLES.clinic).upsert(buildClinicPayload(nextData))
@@ -504,6 +542,14 @@ export async function loadSupabaseWorkspaceData() {
     !invoicesResponse.data?.length
 
   if (isEmptyWorkspace) {
+    const hasSeededAccess = (fallbackEmrData.users || []).some(
+      (user) => normalizeEmail(user.email) && normalizeEmail(user.email) === normalizeEmail(sessionUser?.email),
+    )
+
+    if (!hasSeededAccess) {
+      throw new Error('No seeded clinic access exists for this account yet. Sign in with a prepared clinic user email or ask an administrator to add your email first.')
+    }
+
     return saveSupabaseWorkspaceData(fallbackEmrData)
   }
 

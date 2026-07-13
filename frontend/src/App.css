@@ -293,6 +293,8 @@ textarea:focus-visible {
   border-radius: var(--radius-card);
   display: grid;
   gap: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(142, 182, 155, 0.16));
+  border-color: rgba(142, 182, 155, 0.34);
 }
 
 .stat-card strong {
@@ -300,24 +302,12 @@ textarea:focus-visible {
   letter-spacing: -0.03em;
 }
 
-.stat-card.primary {
-  background: var(--primary-soft);
-}
-
-.stat-card.success {
-  background: var(--success-soft);
-}
-
-.stat-card.warning {
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.stat-card.danger {
-  background: rgba(255, 255, 255, 0.82);
-}
-
+.stat-card.primary,
+.stat-card.success,
+.stat-card.warning,
+.stat-card.danger,
 .stat-card.info {
-  background: rgba(255, 255, 255, 0.82);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(142, 182, 155, 0.16));
 }
 
 .action-grid {
@@ -719,6 +709,22 @@ tbody tr:hover {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.auth-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.auth-profile-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  text-align: left;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
@@ -811,15 +817,20 @@ button:disabled {
     align-items: flex-start;
   }
 
-  .nav-list,
-  .admin-tab-row,
-  .template-toolbar,
-  .pill-row,
-  .topbar-actions {
+  .nav-list {
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 4px;
     scrollbar-width: thin;
+  }
+
+  .admin-tab-row,
+  .template-toolbar,
+  .pill-row,
+  .topbar-actions {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .chip-button,
@@ -830,6 +841,11 @@ button:disabled {
   .topbar-actions select {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .topbar-actions button,
+  .topbar-actions select {
+    width: 100%;
   }
 
   .search-modal {
