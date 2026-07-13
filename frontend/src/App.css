@@ -50,29 +50,6 @@
   color: var(--text);
 }
 
-.disclaimer-bar {
-  grid-column: 1 / -1;
-  overflow: hidden;
-  white-space: nowrap;
-  background: #fff3f4;
-  border-bottom: 1px solid rgba(196, 51, 76, 0.15);
-  color: #a41f39;
-  font-size: 0.86rem;
-  font-weight: 700;
-}
-
-.disclaimer-track {
-  display: inline-flex;
-  gap: 48px;
-  min-width: 100%;
-  padding: 10px 0;
-  animation: scroll-banner 28s linear infinite;
-}
-
-.disclaimer-track span {
-  padding-left: 18px;
-}
-
 .sidebar {
   position: sticky;
   top: 0;
@@ -97,8 +74,6 @@
 
 .brand-block p:not(.eyebrow),
 .panel-head p,
-.module-notice p,
-.hero-card p,
 .section-intro p:last-child,
 .list-card p,
 .list-card small,
@@ -171,7 +146,7 @@
   align-items: flex-start;
 }
 
-.topbar-meta,
+.toolbar,
 .pill-row,
 .action-row,
 .template-toolbar {
@@ -180,12 +155,10 @@
   gap: 10px;
 }
 
-.hero-card,
 .panel,
 .stat-card,
 .list-card,
 .quick-action,
-.module-notice,
 .toast,
 .empty-state,
 .warning-card,
@@ -196,28 +169,14 @@
   backdrop-filter: blur(14px);
 }
 
-.hero-card,
 .panel,
 .empty-state {
   border-radius: 28px;
 }
 
-.hero-card,
 .panel,
 .printable-card {
   padding: 22px;
-}
-
-.hero-card {
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.2), transparent 30%),
-    linear-gradient(135deg, #033d78, #0c7bcc);
-  color: #f8fcff;
-}
-
-.hero-card p {
-  color: rgba(248, 252, 255, 0.84);
-  max-width: 64ch;
 }
 
 .view-stack,
@@ -248,19 +207,12 @@
 
 .panel-head p,
 .section-intro,
-.module-notice p,
 .key-value span,
 .list-card small,
 .timeline-item small,
 .toast,
 .stat-card small {
   color: var(--muted);
-}
-
-.module-notice {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(196, 51, 76, 0.08), rgba(255, 255, 255, 0.9));
 }
 
 .card-grid {
@@ -588,16 +540,6 @@ th {
   font-size: 1.1rem;
 }
 
-@keyframes scroll-banner {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(-50%);
-  }
-}
-
 @media (max-width: 1240px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -606,6 +548,19 @@ th {
   .sidebar {
     position: static;
     min-height: auto;
+  }
+
+  .nav-list {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .nav-button {
+    flex: 0 0 auto;
+    min-width: max-content;
   }
 
   .card-grid.five {
@@ -641,12 +596,37 @@ th {
     padding: 18px 16px;
   }
 
-  .hero-card,
   .panel,
   .printable-card,
   .empty-state {
     border-radius: 22px;
     padding: 18px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .nav-list,
+  .admin-tab-row,
+  .template-toolbar,
+  .pill-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .chip-button,
+  .info-pill,
+  .status-pill,
+  .nav-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .table-wrap {
+    margin: 0 -2px;
   }
 
   .toast {

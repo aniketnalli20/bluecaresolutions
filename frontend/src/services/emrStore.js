@@ -165,11 +165,24 @@ function buildNotifications(data) {
 
 function hydrateWorkspace(rawData) {
   const baseData = cloneData(rawData)
-  return {
+  const normalizedData = {
     ...baseData,
-    dashboard: buildDashboard(baseData),
-    reports: buildReports(baseData),
-    notifications: buildNotifications(baseData),
+    clinic: {
+      ...baseData.clinic,
+      name: 'BlueCare',
+    },
+    systemSettings: {
+      ...baseData.systemSettings,
+      receipt_footer: 'BlueCare',
+      backup_note: 'Local workspace backup.',
+    },
+  }
+
+  return {
+    ...normalizedData,
+    dashboard: buildDashboard(normalizedData),
+    reports: buildReports(normalizedData),
+    notifications: buildNotifications(normalizedData),
   }
 }
 

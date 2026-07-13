@@ -1,6 +1,6 @@
-# BlueCare Ayurvedic Clinic Frontend
+# BlueCare Frontend
 
-This frontend is the Vite + React client for the BlueCare Ayurvedic Clinic Management System.
+This frontend is the Vite + React client for the BlueCare clinic workspace.
 
 ## Production URL
 

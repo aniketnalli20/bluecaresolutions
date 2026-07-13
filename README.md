@@ -1,6 +1,6 @@
-# BlueCare Ayurvedic Clinic
+# BlueCare
 
-BlueCare Ayurvedic Clinic is a React-only single-clinic management workspace focused on daily Ayurvedic operations with a clean healthcare UI and local demo data.
+BlueCare is a React-only clinic workspace focused on daily operations with a clean healthcare UI and local data.
 
 ## Production URL
 

@@ -427,8 +427,7 @@ export function buildFallbackClinicData() {
 
   return {
     clinic: {
-      name: 'BlueCare Ayurvedic Clinic',
-      tagline: 'Daily Ayurvedic OPD, IPD, pharmacy, and therapy operations in one workspace.',
+      name: 'BlueCare',
       location: 'Bengaluru, India',
       contact: '+91 80000 12211',
     },
@@ -447,8 +446,8 @@ export function buildFallbackClinicData() {
       low_stock_threshold: 25,
       near_expiry_days: 45,
       clinic_hours: '08:30 - 18:30',
-      receipt_footer: 'Demo receipt only. Not for live clinical or financial operations.',
-      backup_note: 'Local browser backup only.',
+      receipt_footer: 'BlueCare',
+      backup_note: 'Local workspace backup.',
       supported_units: ['Tablet', 'Capsule', 'Powder (gm)', 'Churna', 'Syrup (ml)', 'Oil (ml)', 'Drops', 'Sachet', 'Bottle', 'Jar', 'Tube', 'Pack'],
     },
   }
