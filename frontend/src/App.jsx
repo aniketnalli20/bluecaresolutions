@@ -1261,10 +1261,10 @@ function App() {
     }
   }, [])
 
-  const handlePrepareSeededAccess = useCallback((profile) => {
-    setAuthMode('sign-up')
+  const handlePrepareSeededAccess = useCallback((profile, mode = 'sign-up') => {
+    setAuthMode(mode)
     setAuthError('')
-    setAuthNotice(`Ready to create access for ${profile.email}.`)
+    setAuthNotice(mode === 'sign-in' ? `Ready to sign in as ${profile.email}.` : `Ready to create access for ${profile.email}.`)
     setAuthForm((current) => ({
       ...current,
       fullName: profile.fullName,
@@ -3394,12 +3394,32 @@ function App() {
           {authError ? <div className="auth-banner error">{authError}</div> : null}
           {authNotice ? <div className="auth-banner success">{authNotice}</div> : null}
           <div className="auth-note">
+            <strong>First admin login</strong>
+            <small>Use `admin@svkini.clinic` to create the first full-access account, then sign in with the same email after confirmation if your project requires email verification.</small>
+          </div>
+          <div className="auth-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => handlePrepareSeededAccess(seededAccessProfiles[0], 'sign-up')}
+            >
+              Create First Admin Account
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => handlePrepareSeededAccess(seededAccessProfiles[0], 'sign-in')}
+            >
+              Sign In as Admin
+            </button>
+          </div>
+          <div className="auth-note">
             <strong>Seeded access profiles</strong>
             <small>Use one of the prepared clinic emails below, especially the administrator profile for the first setup.</small>
           </div>
           <div className="auth-profile-grid">
             {seededAccessProfiles.map((profile) => (
-              <button key={profile.email} type="button" className="auth-profile-card" onClick={() => handlePrepareSeededAccess(profile)}>
+              <button key={profile.email} type="button" className="auth-profile-card" onClick={() => handlePrepareSeededAccess(profile, 'sign-up')}>
                 <strong>{profile.fullName}</strong>
                 <small>{profile.role}</small>
                 <small>{profile.email}</small>
