@@ -2753,15 +2753,6 @@ function App() {
                   <StatCard key={item.label} label={item.label} value={item.value} tone={item.tone} />
                 ))}
               </div>
-              <Panel title="Required Admin Modules" subtitle="Only the required clinic administration tools are kept here.">
-                <div className="pill-row">
-                  {adminSections.slice(1).map((item) => (
-                    <button key={item.key} type="button" className="chip-button" onClick={() => selectAdminSection(item.key)}>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </Panel>
             </div>
           )
       }

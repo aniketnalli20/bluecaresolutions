@@ -242,17 +242,6 @@ textarea:focus-visible {
 .panel {
   display: grid;
   gap: 18px;
-  position: relative;
-}
-
-.panel::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
-  background: var(--primary);
-  opacity: 0.9;
 }
 
 .panel-head {
@@ -362,7 +351,7 @@ textarea:focus-visible {
 }
 
 .list-card.active {
-  outline: 2px solid var(--primary);
+  outline: 2px solid rgba(95, 112, 101, 0.35);
   background: var(--surface-strong);
 }
 
@@ -521,7 +510,7 @@ button:hover {
 }
 
 .primary-button:hover {
-  background: #84ad92;
+  background: #94b8a0;
   box-shadow: 0 12px 24px rgba(76, 97, 83, 0.16);
 }
 
@@ -576,7 +565,7 @@ button:hover {
 .active-chip {
   background: var(--primary-soft);
   color: var(--text);
-  border-color: var(--primary);
+  border-color: rgba(95, 112, 101, 0.35);
 }
 
 .admin-compact-grid .stat-card strong {
@@ -650,10 +639,6 @@ tbody tr:hover {
   padding: 14px 16px;
   border-radius: var(--radius-card);
   z-index: 20;
-}
-
-.toast.success {
-  border-left: 4px solid var(--primary);
 }
 
 .toast.error {
