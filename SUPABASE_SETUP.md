@@ -80,16 +80,44 @@ On first load with valid Supabase credentials and empty tables:
 - the app seeds the Ayurvedic clinic demo workspace into Supabase
 - subsequent saves write to Supabase first and keep a local cache for resilience
 
-## 5. Auth and Session Mapping
+## 5. Configure Supabase Auth
 
-The current app still works without changing the login flow.
+Open Supabase Dashboard -> `Authentication` and confirm:
 
-Optional session mapping is ready for future use:
+- Email provider is enabled
+- `Site URL` matches your frontend URL
+- `Redirect URLs` include your local and production app URLs
 
-- `clinic_users.auth_user_id` can store a Supabase Auth user id
-- when a session exists, the app can map that auth user to the matching clinic user
+Recommended redirect URLs:
 
-## 6. Current Security Posture
+- `http://localhost:5173`
+- your deployed Vercel URL
+
+Password reset and email confirmation links return to the React app, which now shows:
+
+- sign in
+- sign up
+- forgot password
+- update password after recovery link
+
+## 6. Auth and Clinic User Mapping
+
+The workspace is now protected when Supabase credentials are configured.
+
+How access works:
+
+- the user must authenticate with Supabase first
+- the authenticated email must match a record in `clinic_users.email`, or that row must already contain the same `auth_user_id`
+- if an email match exists, the app automatically stores the Supabase user id in `clinic_users.auth_user_id`
+- module access is still controlled by `clinic_users.allowed_views`
+
+Important admin rule:
+
+- every clinic user who should be able to sign in must have a valid email in Clinic Admin -> User Management
+- the sign-in email must match that clinic user email exactly
+- users without a linked clinic profile can authenticate but cannot enter the workspace
+
+## 7. Current Security Posture
 
 The schema enables RLS on all new tables and grants Data API access explicitly, but the current policies allow broad `anon` and `authenticated` CRUD so the existing frontend can work without redesigning auth.
 
@@ -102,7 +130,7 @@ Before production:
 - stop allowing public anonymous write access
 - connect clinic user roles to `auth_user_id`
 
-## 7. Files Added for the Migration
+## 8. Files Added for the Migration
 
 - [supabaseClient.js](file:///c:/xampp/htdocs/bluecaresolutions/frontend/src/services/supabaseClient.js)
 - [supabaseStore.js](file:///c:/xampp/htdocs/bluecaresolutions/frontend/src/services/supabaseStore.js)
@@ -110,6 +138,6 @@ Before production:
 - [emrStore.js](file:///c:/xampp/htdocs/bluecaresolutions/frontend/src/services/emrStore.js)
 - [requestContext.example.js](file:///c:/xampp/htdocs/bluecaresolutions/server/requestContext.example.js)
 
-## 8. If Supabase Is Not Configured
+## 9. If Supabase Is Not Configured
 
 The app falls back to the existing local cache, so the UI still works during setup.
