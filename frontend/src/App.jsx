@@ -133,6 +133,75 @@ const initialInventoryForm = {
   quantity: '',
 }
 
+const initialUserForm = {
+  name: '',
+  role: 'Front Desk Coordinator',
+  status: 'Active',
+  phone: '',
+  shift: '',
+}
+
+const initialSupplierForm = {
+  name: '',
+  contact_person: '',
+  phone: '',
+  address: '',
+}
+
+const initialPurchaseForm = {
+  supplier_id: '',
+  purchase_date: '',
+  status: 'Pending Receipt',
+  total_amount: '',
+  items_text: '',
+}
+
+const initialPackageForm = {
+  name: '',
+  included_medicines: '',
+  consultation_frequency: '',
+  follow_up_schedule: '',
+  therapy_sessions: '',
+  panchakarma_sessions: '',
+  discount: '',
+  package_validity: '',
+  auto_renewal_reminder: '',
+}
+
+const initialDiseaseForm = {
+  illness: '',
+  medicines_text: '',
+  diet_advice: '',
+  lifestyle_advice: '',
+  notes: '',
+}
+
+const initialSettingsForm = {
+  clinic_name: '',
+  clinic_location: '',
+  clinic_contact: '',
+  clinic_hours: '',
+  near_expiry_days: '',
+  low_stock_threshold: '',
+  receipt_footer: '',
+  backup_note: '',
+}
+
+const adminSections = [
+  { key: 'overview', label: 'Dashboard' },
+  { key: 'users', label: 'User Management' },
+  { key: 'medicines', label: 'Medicine Master' },
+  { key: 'diseases', label: 'Disease Master' },
+  { key: 'units', label: 'Unit Management' },
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'suppliers', label: 'Supplier Management' },
+  { key: 'purchases', label: 'Purchase Management' },
+  { key: 'packages', label: 'Package Management' },
+  { key: 'reports', label: 'Reports' },
+  { key: 'settings', label: 'System Settings' },
+  { key: 'backup', label: 'Backup & Restore' },
+]
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -229,7 +298,9 @@ function App() {
   const [patientFilter, setPatientFilter] = useState('All')
   const [selectedPatientId, setSelectedPatientId] = useState('')
   const [selectedConsultationId, setSelectedConsultationId] = useState('')
+  const [selectedAdmissionId, setSelectedAdmissionId] = useState('')
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
+  const [activeAdminSection, setActiveAdminSection] = useState('overview')
   const [backupText, setBackupText] = useState('')
   const [patientForm, setPatientForm] = useState(initialPatientForm)
   const [visitForm, setVisitForm] = useState(initialVisitForm)
@@ -238,6 +309,13 @@ function App() {
   const [medicineForm, setMedicineForm] = useState(initialMedicineForm)
   const [invoiceForm, setInvoiceForm] = useState(initialInvoiceForm)
   const [inventoryForm, setInventoryForm] = useState(initialInventoryForm)
+  const [userForm, setUserForm] = useState(initialUserForm)
+  const [supplierForm, setSupplierForm] = useState(initialSupplierForm)
+  const [purchaseForm, setPurchaseForm] = useState(initialPurchaseForm)
+  const [packageForm, setPackageForm] = useState(initialPackageForm)
+  const [diseaseForm, setDiseaseForm] = useState(initialDiseaseForm)
+  const [settingsForm, setSettingsForm] = useState(initialSettingsForm)
+  const [unitName, setUnitName] = useState('')
 
   useEffect(() => {
     let isCancelled = false
@@ -250,6 +328,7 @@ function App() {
       setWorkspace(data)
       setSelectedPatientId(data.patients[0]?.id || '')
       setSelectedConsultationId(data.opdConsultations[0]?.id || '')
+      setSelectedAdmissionId(data.ipdAdmissions[0]?.id || '')
       setSelectedInvoiceId(data.invoices[0]?.id || '')
       setLoading(false)
     }
@@ -288,7 +367,9 @@ function App() {
   const diseaseMaster = workspace?.diseaseMaster ?? emptyList
   const medicineCatalog = workspace?.medicineCatalog ?? emptyList
   const packages = workspace?.packages ?? emptyList
+  const purchases = workspace?.purchases ?? emptyList
   const suppliers = workspace?.suppliers ?? emptyList
+  const users = workspace?.users ?? emptyList
   const invoices = workspace?.invoices ?? emptyList
   const notifications = workspace?.notifications ?? emptyList
   const reports = workspace?.reports ?? emptyObject
@@ -323,11 +404,40 @@ function App() {
     patients.find((patient) => patient.id === selectedPatientId) || filteredPatients[0] || null
   const selectedConsultation =
     consultations.find((consultation) => consultation.id === selectedConsultationId) || consultations[0] || null
+  const selectedAdmission =
+    ipdAdmissions.find((admission) => admission.id === selectedAdmissionId) || ipdAdmissions[0] || null
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId) || invoices[0] || null
 
   const supplierNameById = useMemo(
     () => Object.fromEntries(suppliers.map((supplier) => [supplier.id, supplier.name])),
     [suppliers],
+  )
+
+  const clinicDoctors = useMemo(
+    () =>
+      users.filter((user) =>
+        /physician|consultant|doctor/i.test(String(user.role || '')) || /^dr\./i.test(String(user.name || '')),
+      ),
+    [users],
+  )
+
+  const selectAdminSection = useCallback(
+    (sectionKey) => {
+      setActiveAdminSection(sectionKey)
+      if (sectionKey === 'settings') {
+        setSettingsForm({
+          clinic_name: clinic.name || '',
+          clinic_location: clinic.location || '',
+          clinic_contact: clinic.contact || '',
+          clinic_hours: settings.clinic_hours || '',
+          near_expiry_days: String(settings.near_expiry_days || ''),
+          low_stock_threshold: String(settings.low_stock_threshold || ''),
+          receipt_footer: settings.receipt_footer || '',
+          backup_note: settings.backup_note || '',
+        })
+      }
+    },
+    [clinic.contact, clinic.location, clinic.name, settings],
   )
 
   const todaysQueue = useMemo(
@@ -551,7 +661,7 @@ function App() {
         purchase_price: Number(medicineForm.purchase_price || 0),
         selling_price: Number(medicineForm.selling_price || 0),
         current_stock: Number(medicineForm.current_stock || 0),
-        low_stock_level: Number(medicineForm.low_stock_level || 0),
+        low_stock_level: Number(medicineForm.low_stock_level || settings.low_stock_threshold || 0),
         expiry_date: medicineForm.expiry_date,
         manufacturer: medicineForm.manufacturer,
         supplier_id: medicineForm.supplier_id,
@@ -564,7 +674,7 @@ function App() {
       )
       setMedicineForm(initialMedicineForm)
     },
-    [medicineCatalog, medicineForm, persistWorkspace, workspace],
+    [medicineCatalog, medicineForm, persistWorkspace, settings.low_stock_threshold, workspace],
   )
 
   const handleInventorySubmit = useCallback(
@@ -634,6 +744,165 @@ function App() {
       setInvoiceForm(initialInvoiceForm)
     },
     [invoiceForm, invoices, patientsById, persistWorkspace, workspace],
+  )
+
+  const handleUserSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      const record = {
+        id: createRecordId('user'),
+        name: userForm.name,
+        role: userForm.role,
+        status: userForm.status,
+        phone: userForm.phone,
+        shift: userForm.shift,
+      }
+
+      persistWorkspace({ ...workspace, users: [record, ...users] }, 'Clinic user added.')
+      setUserForm(initialUserForm)
+    },
+    [persistWorkspace, userForm, users, workspace],
+  )
+
+  const handleSupplierSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      const record = {
+        id: createRecordId('supplier'),
+        name: supplierForm.name,
+        contact_person: supplierForm.contact_person,
+        phone: supplierForm.phone,
+        address: supplierForm.address,
+      }
+
+      persistWorkspace({ ...workspace, suppliers: [record, ...suppliers] }, 'Supplier added.')
+      setSupplierForm(initialSupplierForm)
+    },
+    [persistWorkspace, supplierForm, suppliers, workspace],
+  )
+
+  const handlePurchaseSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      const items = purchaseForm.items_text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const [medicine_name, quantity, purchase_unit, batch_number] = line.split('|').map((part) => part.trim())
+          return {
+            medicine_name: medicine_name || 'Ayurvedic medicine',
+            quantity: Number(quantity || 0),
+            purchase_unit: purchase_unit || 'Unit',
+            batch_number: batch_number || 'NA',
+          }
+        })
+
+      const record = {
+        id: createRecordId('purchase'),
+        purchase_order_number: `PO-AYU-${String(purchases.length + 101).padStart(3, '0')}`,
+        supplier_id: purchaseForm.supplier_id,
+        purchase_date: purchaseForm.purchase_date || new Date().toISOString().slice(0, 10),
+        status: purchaseForm.status,
+        total_amount: Number(purchaseForm.total_amount || 0),
+        items,
+      }
+
+      persistWorkspace({ ...workspace, purchases: [record, ...purchases] }, 'Purchase recorded.')
+      setPurchaseForm(initialPurchaseForm)
+    },
+    [persistWorkspace, purchaseForm, purchases, workspace],
+  )
+
+  const handlePackageSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      const record = {
+        id: createRecordId('package'),
+        name: packageForm.name,
+        included_medicines: packageForm.included_medicines
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        consultation_frequency: packageForm.consultation_frequency,
+        follow_up_schedule: packageForm.follow_up_schedule,
+        therapy_sessions: Number(packageForm.therapy_sessions || 0),
+        panchakarma_sessions: Number(packageForm.panchakarma_sessions || 0),
+        discount: packageForm.discount,
+        package_validity: packageForm.package_validity,
+        auto_renewal_reminder: packageForm.auto_renewal_reminder,
+      }
+
+      persistWorkspace({ ...workspace, packages: [record, ...packages] }, 'Package saved.')
+      setPackageForm(initialPackageForm)
+    },
+    [packageForm, packages, persistWorkspace, workspace],
+  )
+
+  const handleDiseaseSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      const record = {
+        id: createRecordId('disease'),
+        illness: diseaseForm.illness,
+        recommended_medicines: parsePrescription(diseaseForm.medicines_text),
+        diet_advice: diseaseForm.diet_advice,
+        lifestyle_advice: diseaseForm.lifestyle_advice,
+        notes: diseaseForm.notes,
+      }
+
+      persistWorkspace({ ...workspace, diseaseMaster: [record, ...diseaseMaster] }, 'Disease template saved.')
+      setDiseaseForm(initialDiseaseForm)
+    },
+    [diseaseForm, diseaseMaster, persistWorkspace, workspace],
+  )
+
+  const handleUnitAdd = useCallback(() => {
+    const trimmed = unitName.trim()
+    if (!trimmed) {
+      setToast({ message: 'Enter a unit name before adding it.', tone: 'error' })
+      return
+    }
+
+    const nextUnits = Array.from(new Set([...(settings.supported_units || []), trimmed]))
+    persistWorkspace(
+      {
+        ...workspace,
+        systemSettings: {
+          ...settings,
+          supported_units: nextUnits,
+        },
+      },
+      'Dispensing unit added.',
+    )
+    setUnitName('')
+  }, [persistWorkspace, settings, unitName, workspace])
+
+  const handleAdminSettingsSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      persistWorkspace(
+        {
+          ...workspace,
+          clinic: {
+            ...clinic,
+            name: settingsForm.clinic_name,
+            location: settingsForm.clinic_location,
+            contact: settingsForm.clinic_contact,
+          },
+          systemSettings: {
+            ...settings,
+            clinic_hours: settingsForm.clinic_hours,
+            near_expiry_days: Number(settingsForm.near_expiry_days || 0),
+            low_stock_threshold: Number(settingsForm.low_stock_threshold || 0),
+            receipt_footer: settingsForm.receipt_footer,
+            backup_note: settingsForm.backup_note,
+          },
+        },
+        'Clinic admin settings updated.',
+      )
+    },
+    [clinic, persistWorkspace, settings, settingsForm, workspace],
   )
 
   const handleBackupGenerate = useCallback(() => {
@@ -1271,30 +1540,315 @@ function App() {
   }
 
   function renderAdmin() {
+    const adminOverviewCards = [
+      { label: 'Users', value: users.length, tone: 'primary' },
+      { label: 'Medicines', value: medicineCatalog.length, tone: 'info' },
+      { label: 'Diseases', value: diseaseMaster.length, tone: 'success' },
+      { label: 'Suppliers', value: suppliers.length, tone: 'warning' },
+      { label: 'Purchases', value: purchases.length, tone: 'primary' },
+      { label: 'Packages', value: packages.length, tone: 'success' },
+    ]
+
+    function renderAdminContent() {
+      switch (activeAdminSection) {
+        case 'users':
+          return (
+            <div className="split-grid">
+              <Panel title="User Management" subtitle="Single-clinic users only for required daily roles.">
+                <SimpleTable
+                  columns={['Name', 'Role', 'Status', 'Phone', 'Shift']}
+                  rows={users.map((user) => [user.name, user.role, user.status, user.phone, user.shift])}
+                />
+              </Panel>
+              <Panel title="Add User" subtitle="Create clinic users for daily operations.">
+                <form className="form-grid" onSubmit={handleUserSubmit}>
+                  <input value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} placeholder="User name" required />
+                  <input value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })} placeholder="Role" required />
+                  <select value={userForm.status} onChange={(event) => setUserForm({ ...userForm, status: event.target.value })}>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                  </select>
+                  <input value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value })} placeholder="Phone" required />
+                  <input value={userForm.shift} onChange={(event) => setUserForm({ ...userForm, shift: event.target.value })} placeholder="Shift" required />
+                  <button type="submit" className="primary-button">Save User</button>
+                </form>
+              </Panel>
+            </div>
+          )
+        case 'medicines':
+          return (
+            <div className="split-grid">
+              <Panel title="Medicine Master" subtitle="Required medicine master content only.">
+                <SimpleTable
+                  columns={['Medicine', 'Category', 'Dispensing Unit', 'Stock', 'Expiry', 'Supplier']}
+                  rows={medicineCatalog.map((medicine) => [
+                    medicine.medicine_name,
+                    medicine.category,
+                    medicine.dispensing_unit,
+                    medicine.current_stock,
+                    formatDate(medicine.expiry_date),
+                    supplierNameById[medicine.supplier_id] || 'Not assigned',
+                  ])}
+                />
+              </Panel>
+              <Panel title="Add Medicine" subtitle="Create medicine master entries from the admin module.">
+                <form className="form-grid" onSubmit={handleMedicineSubmit}>
+                  <input value={medicineForm.medicine_name} onChange={(event) => setMedicineForm({ ...medicineForm, medicine_name: event.target.value })} placeholder="Medicine name" required />
+                  <input value={medicineForm.category} onChange={(event) => setMedicineForm({ ...medicineForm, category: event.target.value })} placeholder="Category" required />
+                  <input value={medicineForm.purchase_unit} onChange={(event) => setMedicineForm({ ...medicineForm, purchase_unit: event.target.value })} placeholder="Purchase unit" required />
+                  <input value={medicineForm.dispensing_unit} onChange={(event) => setMedicineForm({ ...medicineForm, dispensing_unit: event.target.value })} placeholder="Dispensing unit" required />
+                  <input value={medicineForm.unit_conversion} onChange={(event) => setMedicineForm({ ...medicineForm, unit_conversion: event.target.value })} placeholder="Unit conversion" required />
+                  <input value={medicineForm.batch_number} onChange={(event) => setMedicineForm({ ...medicineForm, batch_number: event.target.value })} placeholder="Batch number" required />
+                  <input type="number" min="0" value={medicineForm.purchase_price} onChange={(event) => setMedicineForm({ ...medicineForm, purchase_price: event.target.value })} placeholder="Purchase price" />
+                  <input type="number" min="0" value={medicineForm.selling_price} onChange={(event) => setMedicineForm({ ...medicineForm, selling_price: event.target.value })} placeholder="Selling price" />
+                  <input type="number" min="0" value={medicineForm.current_stock} onChange={(event) => setMedicineForm({ ...medicineForm, current_stock: event.target.value })} placeholder="Current stock" />
+                  <input type="number" min="0" value={medicineForm.low_stock_level} onChange={(event) => setMedicineForm({ ...medicineForm, low_stock_level: event.target.value })} placeholder="Low stock level" />
+                  <input type="date" value={medicineForm.expiry_date} onChange={(event) => setMedicineForm({ ...medicineForm, expiry_date: event.target.value })} />
+                  <input value={medicineForm.manufacturer} onChange={(event) => setMedicineForm({ ...medicineForm, manufacturer: event.target.value })} placeholder="Manufacturer" />
+                  <select value={medicineForm.supplier_id} onChange={(event) => setMedicineForm({ ...medicineForm, supplier_id: event.target.value })}>
+                    <option value="">Supplier</option>
+                    {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                  </select>
+                  <input type="number" min="0" value={medicineForm.monthly_movement} onChange={(event) => setMedicineForm({ ...medicineForm, monthly_movement: event.target.value })} placeholder="Monthly movement" />
+                  <button type="submit" className="primary-button">Save Medicine</button>
+                </form>
+              </Panel>
+            </div>
+          )
+        case 'diseases':
+          return (
+            <div className="split-grid">
+              <Panel title="Disease Master" subtitle="Illness templates used for Ayurvedic prescribing.">
+                <SimpleTable
+                  columns={['Illness', 'Medicines', 'Diet Advice', 'Lifestyle Advice']}
+                  rows={diseaseMaster.map((item) => [
+                    item.illness,
+                    item.recommended_medicines.map((medicine) => medicine.medicine).join(', '),
+                    item.diet_advice,
+                    item.lifestyle_advice,
+                  ])}
+                />
+              </Panel>
+              <Panel title="Add Disease Template" subtitle="Create reusable illness-based prescription templates.">
+                <form className="form-grid" onSubmit={handleDiseaseSubmit}>
+                  <input value={diseaseForm.illness} onChange={(event) => setDiseaseForm({ ...diseaseForm, illness: event.target.value })} placeholder="Illness name" required />
+                  <textarea className="full-span" value={diseaseForm.medicines_text} onChange={(event) => setDiseaseForm({ ...diseaseForm, medicines_text: event.target.value })} placeholder="Medicine | Dosage | Morning/Afternoon/Night | Before/After food | Duration | Quantity" required />
+                  <textarea value={diseaseForm.diet_advice} onChange={(event) => setDiseaseForm({ ...diseaseForm, diet_advice: event.target.value })} placeholder="Diet advice" required />
+                  <textarea value={diseaseForm.lifestyle_advice} onChange={(event) => setDiseaseForm({ ...diseaseForm, lifestyle_advice: event.target.value })} placeholder="Lifestyle advice" required />
+                  <textarea value={diseaseForm.notes} onChange={(event) => setDiseaseForm({ ...diseaseForm, notes: event.target.value })} placeholder="Notes" />
+                  <button type="submit" className="primary-button">Save Disease</button>
+                </form>
+              </Panel>
+            </div>
+          )
+        case 'units':
+          return (
+            <div className="split-grid">
+              <Panel title="Unit Management" subtitle="Dispensing units supported in the clinic.">
+                <div className="pill-row">
+                  {(settings.supported_units || []).map((unit) => (
+                    <InfoPill key={unit} text={unit} />
+                  ))}
+                </div>
+              </Panel>
+              <Panel title="Add Unit" subtitle="Add only clinic-required dispensing units.">
+                <div className="form-grid">
+                  <input value={unitName} onChange={(event) => setUnitName(event.target.value)} placeholder="Unit name" />
+                  <button type="button" className="primary-button" onClick={handleUnitAdd}>Add Unit</button>
+                </div>
+              </Panel>
+            </div>
+          )
+        case 'inventory':
+          return (
+            <div className="split-grid">
+              <Panel title="Inventory Control" subtitle="Stock status and warning summary from the clinic inventory.">
+                <SimpleTable
+                  columns={['Medicine', 'Stock', 'Low Level', 'Expiry', 'Warning']}
+                  rows={stockWarnings.map((medicine) => [
+                    medicine.medicine_name,
+                    medicine.current_stock,
+                    medicine.low_stock_level,
+                    formatDate(medicine.expiry_date),
+                    <StatusPill key={medicine.id} value={medicine.alert.replace('-', ' ')} tone={medicine.alert} />,
+                  ])}
+                />
+              </Panel>
+              <Panel title="Stock Warning Settings" subtitle="Current thresholds used across the clinic workspace.">
+                <KeyValue label="Near Expiry Days" value={settings.near_expiry_days} />
+                <KeyValue label="Default Low Stock Threshold" value={settings.low_stock_threshold} />
+                <KeyValue label="Low Stock Medicines" value={warningBuckets.low.length} />
+                <KeyValue label="Out of Stock Medicines" value={warningBuckets.out.length} />
+                <KeyValue label="Near Expiry Medicines" value={warningBuckets.nearExpiry.length} />
+                <KeyValue label="Expired Medicines" value={warningBuckets.expired.length} />
+              </Panel>
+            </div>
+          )
+        case 'suppliers':
+          return (
+            <div className="split-grid">
+              <Panel title="Supplier Management" subtitle="Required supplier records only.">
+                <SimpleTable
+                  columns={['Supplier', 'Contact Person', 'Phone', 'Address']}
+                  rows={suppliers.map((supplier) => [supplier.name, supplier.contact_person, supplier.phone, supplier.address])}
+                />
+              </Panel>
+              <Panel title="Add Supplier" subtitle="Create supplier records for procurement and stock intake.">
+                <form className="form-grid" onSubmit={handleSupplierSubmit}>
+                  <input value={supplierForm.name} onChange={(event) => setSupplierForm({ ...supplierForm, name: event.target.value })} placeholder="Supplier name" required />
+                  <input value={supplierForm.contact_person} onChange={(event) => setSupplierForm({ ...supplierForm, contact_person: event.target.value })} placeholder="Contact person" required />
+                  <input value={supplierForm.phone} onChange={(event) => setSupplierForm({ ...supplierForm, phone: event.target.value })} placeholder="Phone" required />
+                  <textarea value={supplierForm.address} onChange={(event) => setSupplierForm({ ...supplierForm, address: event.target.value })} placeholder="Address" />
+                  <button type="submit" className="primary-button">Save Supplier</button>
+                </form>
+              </Panel>
+            </div>
+          )
+        case 'purchases':
+          return (
+            <div className="split-grid">
+              <Panel title="Purchase Management" subtitle="Purchase orders, supplier linkage, and amount tracking.">
+                <SimpleTable
+                  columns={['PO Number', 'Supplier', 'Date', 'Status', 'Amount']}
+                  rows={purchases.map((purchase) => [
+                    purchase.purchase_order_number,
+                    supplierNameById[purchase.supplier_id] || 'Unknown',
+                    formatDate(purchase.purchase_date),
+                    purchase.status,
+                    formatCurrency(purchase.total_amount),
+                  ])}
+                />
+              </Panel>
+              <Panel title="Add Purchase" subtitle="Create purchase orders for local inventory intake.">
+                <form className="form-grid" onSubmit={handlePurchaseSubmit}>
+                  <select value={purchaseForm.supplier_id} onChange={(event) => setPurchaseForm({ ...purchaseForm, supplier_id: event.target.value })} required>
+                    <option value="">Supplier</option>
+                    {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                  </select>
+                  <input type="date" value={purchaseForm.purchase_date} onChange={(event) => setPurchaseForm({ ...purchaseForm, purchase_date: event.target.value })} required />
+                  <select value={purchaseForm.status} onChange={(event) => setPurchaseForm({ ...purchaseForm, status: event.target.value })}>
+                    <option>Pending Receipt</option>
+                    <option>Received</option>
+                    <option>Cancelled</option>
+                  </select>
+                  <input type="number" min="0" value={purchaseForm.total_amount} onChange={(event) => setPurchaseForm({ ...purchaseForm, total_amount: event.target.value })} placeholder="Total amount" required />
+                  <textarea className="full-span" value={purchaseForm.items_text} onChange={(event) => setPurchaseForm({ ...purchaseForm, items_text: event.target.value })} placeholder="Medicine | Quantity | Purchase unit | Batch number" required />
+                  <button type="submit" className="primary-button">Save Purchase</button>
+                </form>
+              </Panel>
+            </div>
+          )
+        case 'packages':
+          return (
+            <div className="split-grid">
+              <Panel title="Package Management" subtitle="Active package plans for 1, 3, and 6 month care cycles.">
+                <SimpleTable
+                  columns={['Package', 'Medicines', 'Consultation Frequency', 'Therapy Sessions', 'Panchakarma Sessions', 'Renewal']}
+                  rows={packages.map((item) => [
+                    item.name,
+                    item.included_medicines.join(', '),
+                    item.consultation_frequency,
+                    item.therapy_sessions,
+                    item.panchakarma_sessions,
+                    formatDate(item.auto_renewal_reminder),
+                  ])}
+                />
+              </Panel>
+              <Panel title="Add Package" subtitle="Create package definitions for clinic follow-up care.">
+                <form className="form-grid" onSubmit={handlePackageSubmit}>
+                  <input value={packageForm.name} onChange={(event) => setPackageForm({ ...packageForm, name: event.target.value })} placeholder="Package name" required />
+                  <input value={packageForm.included_medicines} onChange={(event) => setPackageForm({ ...packageForm, included_medicines: event.target.value })} placeholder="Included medicines, comma separated" required />
+                  <input value={packageForm.consultation_frequency} onChange={(event) => setPackageForm({ ...packageForm, consultation_frequency: event.target.value })} placeholder="Consultation frequency" required />
+                  <input value={packageForm.follow_up_schedule} onChange={(event) => setPackageForm({ ...packageForm, follow_up_schedule: event.target.value })} placeholder="Follow-up schedule" required />
+                  <input type="number" min="0" value={packageForm.therapy_sessions} onChange={(event) => setPackageForm({ ...packageForm, therapy_sessions: event.target.value })} placeholder="Therapy sessions" />
+                  <input type="number" min="0" value={packageForm.panchakarma_sessions} onChange={(event) => setPackageForm({ ...packageForm, panchakarma_sessions: event.target.value })} placeholder="Panchakarma sessions" />
+                  <input value={packageForm.discount} onChange={(event) => setPackageForm({ ...packageForm, discount: event.target.value })} placeholder="Discount" />
+                  <input value={packageForm.package_validity} onChange={(event) => setPackageForm({ ...packageForm, package_validity: event.target.value })} placeholder="Package validity" required />
+                  <input type="date" value={packageForm.auto_renewal_reminder} onChange={(event) => setPackageForm({ ...packageForm, auto_renewal_reminder: event.target.value })} required />
+                  <button type="submit" className="primary-button">Save Package</button>
+                </form>
+              </Panel>
+            </div>
+          )
+        case 'reports':
+          return (
+            <Panel title="Admin Reports Summary" subtitle="Required operational report metrics for the clinic.">
+              <div className="card-grid five admin-compact-grid">
+                <StatCard label="Daily Revenue" value={formatCurrency(reports.dailyRevenue || 0)} tone="success" />
+                <StatCard label="Monthly Revenue" value={formatCurrency(reports.monthlyRevenue || 0)} tone="primary" />
+                <StatCard label="Medicine Sales" value={formatCurrency(reports.medicineSales || 0)} tone="warning" />
+                <StatCard label="OPD Stats" value={reports.opdStatistics || 0} tone="info" />
+                <StatCard label="IPD Stats" value={reports.ipdStatistics || 0} tone="primary" />
+              </div>
+            </Panel>
+          )
+        case 'settings':
+          return (
+            <Panel title="System Settings" subtitle="Clinic-level settings and warning controls only.">
+              <form className="form-grid" onSubmit={handleAdminSettingsSubmit}>
+                <input value={settingsForm.clinic_name} onChange={(event) => setSettingsForm({ ...settingsForm, clinic_name: event.target.value })} placeholder="Clinic name" required />
+                <input value={settingsForm.clinic_location} onChange={(event) => setSettingsForm({ ...settingsForm, clinic_location: event.target.value })} placeholder="Clinic location" required />
+                <input value={settingsForm.clinic_contact} onChange={(event) => setSettingsForm({ ...settingsForm, clinic_contact: event.target.value })} placeholder="Clinic contact" required />
+                <input value={settingsForm.clinic_hours} onChange={(event) => setSettingsForm({ ...settingsForm, clinic_hours: event.target.value })} placeholder="Clinic hours" required />
+                <input type="number" min="1" value={settingsForm.near_expiry_days} onChange={(event) => setSettingsForm({ ...settingsForm, near_expiry_days: event.target.value })} placeholder="Near expiry days" required />
+                <input type="number" min="1" value={settingsForm.low_stock_threshold} onChange={(event) => setSettingsForm({ ...settingsForm, low_stock_threshold: event.target.value })} placeholder="Default low stock threshold" required />
+                <textarea value={settingsForm.receipt_footer} onChange={(event) => setSettingsForm({ ...settingsForm, receipt_footer: event.target.value })} placeholder="Receipt footer" />
+                <textarea value={settingsForm.backup_note} onChange={(event) => setSettingsForm({ ...settingsForm, backup_note: event.target.value })} placeholder="Backup note" />
+                <button type="submit" className="primary-button">Save Settings</button>
+              </form>
+            </Panel>
+          )
+        case 'backup':
+          return (
+            <Panel title="Backup & Restore" subtitle="Local backup actions for demo and testing use only.">
+              <ModuleNotice label="Backup warning" text={DEMO_DISCLAIMER} />
+              <div className="action-row">
+                <button type="button" className="primary-button" onClick={handleBackupGenerate}>Generate Backup</button>
+                <button type="button" className="ghost-button" onClick={handleBackupRestore}>Restore Backup</button>
+                <button type="button" className="ghost-button" onClick={handleResetWorkspace}>Reset Demo Data</button>
+              </div>
+              <textarea value={backupText} onChange={(event) => setBackupText(event.target.value)} placeholder="Backup JSON appears here for restore and testing." />
+            </Panel>
+          )
+        default:
+          return (
+            <div className="view-stack">
+              <div className="card-grid three">
+                {adminOverviewCards.map((item) => (
+                  <StatCard key={item.label} label={item.label} value={item.value} tone={item.tone} />
+                ))}
+              </div>
+              <Panel title="Required Admin Modules" subtitle="Only the required clinic administration tools are kept here.">
+                <div className="pill-row">
+                  {adminSections.slice(1).map((item) => (
+                    <button key={item.key} type="button" className="chip-button" onClick={() => selectAdminSection(item.key)}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </Panel>
+            </div>
+          )
+      }
+    }
+
     return (
       <div className="view-stack">
-        <SectionIntro eyebrow="Clinic Admin" title="Simple clinic administration for users, medicine master, disease master, units, inventory settings, reports, system settings, and backup/restore." />
+        <SectionIntro eyebrow="Clinic Admin" title="Clinic administration with only the required management tools for daily operations." />
         <ModuleNotice label="Admin warning" text={DEMO_DISCLAIMER} />
-        <div className="split-grid">
-          <Panel title="User Management" subtitle="Single-clinic staff list without platform hierarchy or enterprise SaaS roles.">
-            <SimpleTable
-              columns={['Name', 'Role', 'Status', 'Phone', 'Shift']}
-              rows={(workspace?.users || []).map((user) => [user.name, user.role, user.status, user.phone, user.shift])}
-            />
-          </Panel>
-          <Panel title="System Settings" subtitle="Local warning thresholds, clinic hours, supported units, backup, and restore.">
-            <KeyValue label="Clinic Hours" value={settings.clinic_hours} />
-            <KeyValue label="Stock Warning Days" value={settings.near_expiry_days} />
-            <KeyValue label="Supported Units" value={(settings.supported_units || []).join(', ')} />
-            <KeyValue label="Modules" value="Dashboard, User Management, Medicine Master, Disease Master, Unit Management, Inventory, Supplier Management, Purchase Management, Package Management, Reports, System Settings, Backup and Restore" />
-            <div className="action-row">
-              <button type="button" className="primary-button" onClick={handleBackupGenerate}>Generate Backup</button>
-              <button type="button" className="ghost-button" onClick={handleBackupRestore}>Restore Backup</button>
-              <button type="button" className="ghost-button" onClick={handleResetWorkspace}>Reset Demo Data</button>
-            </div>
-            <textarea value={backupText} onChange={(event) => setBackupText(event.target.value)} placeholder="Backup JSON appears here for restore and testing." />
-          </Panel>
+        <div className="admin-tab-row">
+          {adminSections.map((section) => (
+            <button
+              key={section.key}
+              type="button"
+              className={activeAdminSection === section.key ? 'chip-button active-chip' : 'chip-button'}
+              onClick={() => selectAdminSection(section.key)}
+            >
+              {section.label}
+            </button>
+          ))}
         </div>
+        {renderAdminContent()}
       </div>
     )
   }

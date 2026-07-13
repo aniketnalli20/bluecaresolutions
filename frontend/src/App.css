@@ -493,6 +493,22 @@ button:hover {
   border: 1px solid var(--line);
 }
 
+.admin-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.active-chip {
+  background: linear-gradient(180deg, var(--primary-soft), var(--surface));
+  color: var(--primary);
+  border-color: rgba(11, 117, 201, 0.18);
+}
+
+.admin-compact-grid .stat-card strong {
+  font-size: 1.35rem;
+}
+
 .printable-card {
   display: grid;
   gap: 14px;
