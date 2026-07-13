@@ -25,6 +25,8 @@ const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled'
 const visitTypes = ['Appointment', 'Walk-in', 'Follow-up', 'Therapy Planning']
 const genders = ['Female', 'Male', 'Other']
 const inventoryActions = ['Stock In', 'Stock Out', 'Stock Adjustment', 'Physical Verification']
+const emptyList = []
+const emptyObject = {}
 
 const initialPatientForm = {
   name: '',
@@ -279,20 +281,20 @@ function App() {
     setToast({ message, tone })
   }, [])
 
-  const patients = workspace?.patients || []
-  const visits = workspace?.visitPlanner || []
-  const consultations = workspace?.opdConsultations || []
-  const ipdAdmissions = workspace?.ipdAdmissions || []
-  const diseaseMaster = workspace?.diseaseMaster || []
-  const medicineCatalog = workspace?.medicineCatalog || []
-  const packages = workspace?.packages || []
-  const suppliers = workspace?.suppliers || []
-  const invoices = workspace?.invoices || []
-  const notifications = workspace?.notifications || []
-  const reports = workspace?.reports || {}
-  const dashboard = workspace?.dashboard || {}
-  const clinic = workspace?.clinic || {}
-  const settings = workspace?.systemSettings || {}
+  const patients = workspace?.patients ?? emptyList
+  const visits = workspace?.visitPlanner ?? emptyList
+  const consultations = workspace?.opdConsultations ?? emptyList
+  const ipdAdmissions = workspace?.ipdAdmissions ?? emptyList
+  const diseaseMaster = workspace?.diseaseMaster ?? emptyList
+  const medicineCatalog = workspace?.medicineCatalog ?? emptyList
+  const packages = workspace?.packages ?? emptyList
+  const suppliers = workspace?.suppliers ?? emptyList
+  const invoices = workspace?.invoices ?? emptyList
+  const notifications = workspace?.notifications ?? emptyList
+  const reports = workspace?.reports ?? emptyObject
+  const dashboard = workspace?.dashboard ?? emptyObject
+  const clinic = workspace?.clinic ?? emptyObject
+  const settings = workspace?.systemSettings ?? emptyObject
 
   const patientsById = useMemo(
     () => Object.fromEntries(patients.map((patient) => [patient.id, patient])),
