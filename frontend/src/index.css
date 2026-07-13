@@ -1,5 +1,5 @@
 :root {
-  color: #213126;
+  color: #000000;
   background: #daf1de;
   font-family: 'Manrope', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.5;
@@ -32,7 +32,7 @@ textarea {
 }
 
 a {
-  color: #8eb69b;
+  color: #000000;
   text-decoration: none;
 }
 
