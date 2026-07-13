@@ -2,9 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadWorkspaceData, resetWorkspaceData, saveWorkspaceData } from './services/emrStore'
 import './App.css'
 
-const DEMO_DISCLAIMER =
-  'This software is for demonstration, testing, and development purposes only. It is NOT intended for live clinical, hospital-floor, patient-care, or production use. All records, patient information, reports, schedules, inventory, prescriptions, invoices, and datasets displayed within this application are artificial, fictional, and generated solely for testing purposes.'
-
 const navItems = [
   { key: 'Dashboard', label: 'Dashboard' },
   { key: 'Patients', label: 'Patients' },
@@ -421,6 +418,8 @@ function App() {
     [users],
   )
 
+  const doctorDirectory = clinicDoctors.length ? clinicDoctors : users
+
   const selectAdminSection = useCallback(
     (sectionKey) => {
       setActiveAdminSection(sectionKey)
@@ -642,6 +641,7 @@ function App() {
       }
 
       persistWorkspace({ ...workspace, ipdAdmissions: [admission, ...ipdAdmissions] }, 'IPD admission recorded.')
+      setSelectedAdmissionId(admission.id)
       setAdmissionForm(initialAdmissionForm)
     },
     [admissionForm, ipdAdmissions, patientsById, persistWorkspace, workspace],
@@ -926,8 +926,9 @@ function App() {
     setWorkspace(data)
     setSelectedPatientId(data.patients[0]?.id || '')
     setSelectedConsultationId(data.opdConsultations[0]?.id || '')
+    setSelectedAdmissionId(data.ipdAdmissions[0]?.id || '')
     setSelectedInvoiceId(data.invoices[0]?.id || '')
-    setToast({ message: 'Clinic workspace reset to Ayurvedic demo data.', tone: 'success' })
+    setToast({ message: 'Clinic workspace reset.', tone: 'success' })
   }, [])
 
   const printCurrentView = useCallback(() => {
@@ -935,18 +936,13 @@ function App() {
   }, [])
 
   if (loading) {
-    return <div className="loading-screen">Preparing BlueCare Ayurvedic Clinic workspace...</div>
+    return <div className="loading-screen">Loading workspace...</div>
   }
 
   function renderDashboard() {
     return (
       <div className="view-stack">
-        <HeroCard
-          eyebrow="BlueCare Ayurvedic Clinic"
-          title="Single-clinic operations for OPD, IPD, prescriptions, inventory, billing, and follow-up care."
-          description={clinic.tagline}
-        />
-        <ModuleNotice label="Workspace warning" text={DEMO_DISCLAIMER} />
+        <SectionIntro eyebrow="Dashboard" title="Appointments, patients, revenue, stock, and follow-up overview." />
         <div className="card-grid four">
           <StatCard label="Today's Appointments" value={dashboard.todaysAppointments?.length || 0} tone="info" />
           <StatCard label="OPD Patient Count" value={dashboard.opdPatientCount || 0} tone="primary" />
@@ -1105,9 +1101,9 @@ function App() {
               rows={todaysQueue.map((visit) => [visit.queue_no, visit.patient_name, visit.doctor_name, visit.visit_type, visit.appointment_time, <StatusPill key={visit.id} value={visit.status} />])}
             />
           </Panel>
-          <Panel title="Doctor Calendar" subtitle="Consultation slots and therapy planning readiness.">
+          <Panel title="Doctor Calendar" subtitle="Clinic doctor schedule visibility for appointments and therapy planning.">
             <div className="list-stack">
-              {(workspace?.users || []).map((user) => (
+              {doctorDirectory.map((user) => (
                 <div key={user.id} className="list-card">
                   <div className="list-card-header">
                     <strong>{user.name}</strong>
@@ -1127,7 +1123,9 @@ function App() {
               {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
             </select>
             <input value={visitForm.patient_name} onChange={(event) => setVisitForm({ ...visitForm, patient_name: event.target.value })} placeholder="Walk-in patient name" />
-            <input value={visitForm.doctor_name} onChange={(event) => setVisitForm({ ...visitForm, doctor_name: event.target.value })} placeholder="Doctor name" required />
+            <select value={visitForm.doctor_name} onChange={(event) => setVisitForm({ ...visitForm, doctor_name: event.target.value })} required>
+              {doctorDirectory.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
+            </select>
             <select value={visitForm.visit_type} onChange={(event) => setVisitForm({ ...visitForm, visit_type: event.target.value })}>{visitTypes.map((item) => <option key={item}>{item}</option>)}</select>
             <input type="date" value={visitForm.appointment_date} onChange={(event) => setVisitForm({ ...visitForm, appointment_date: event.target.value })} required />
             <input type="time" value={visitForm.appointment_time} onChange={(event) => setVisitForm({ ...visitForm, appointment_time: event.target.value })} required />
@@ -1145,7 +1143,6 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="OPD Management" title="Ayurvedic consultations with symptoms, Nadi examination, diagnosis, prescription, diet, lifestyle, Panchakarma advice, and billing." />
-        <ModuleNotice label="Prescription warning" text={DEMO_DISCLAIMER} />
         <div className="split-grid">
           <Panel title="Recent Consultations" subtitle="Select any consultation to review the printable Ayurvedic prescription summary.">
             <div className="list-stack">
@@ -1164,7 +1161,6 @@ function App() {
           <Panel title="Printable Prescription" subtitle="Use the browser print action for prescription output.">
             {selectedConsultation ? (
               <div className="printable-card">
-                <ModuleNotice label="Demo prescription" text={DEMO_DISCLAIMER} />
                 <KeyValue label="Patient" value={selectedConsultation.patient_name} />
                 <KeyValue label="Doctor" value={selectedConsultation.doctor_name} />
                 <KeyValue label="Diagnosis" value={selectedConsultation.diagnosis} />
@@ -1202,7 +1198,9 @@ function App() {
               <option value="">Patient</option>
               {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
             </select>
-            <input value={consultationForm.doctor_name} onChange={(event) => setConsultationForm({ ...consultationForm, doctor_name: event.target.value })} placeholder="Doctor name" required />
+            <select value={consultationForm.doctor_name} onChange={(event) => setConsultationForm({ ...consultationForm, doctor_name: event.target.value })} required>
+              {doctorDirectory.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
+            </select>
             <input type="date" value={consultationForm.consultation_date} onChange={(event) => setConsultationForm({ ...consultationForm, consultation_date: event.target.value })} required />
             <select value={consultationForm.disease_template_id} onChange={(event) => applyDiseaseTemplate(event.target.value)}>
               <option value="">Load disease template</option>
@@ -1248,7 +1246,7 @@ function App() {
           <Panel title="IPD Cases" subtitle="Indoor care summary for current Ayurvedic admissions.">
             <div className="list-stack">
               {ipdAdmissions.map((admission) => (
-                <div key={admission.id} className="list-card">
+                <button key={admission.id} type="button" className={selectedAdmissionId === admission.id ? 'list-card active' : 'list-card'} onClick={() => setSelectedAdmissionId(admission.id)}>
                   <div className="list-card-header">
                     <strong>{admission.patient_name}</strong>
                     <StatusPill value={admission.status} />
@@ -1256,17 +1254,51 @@ function App() {
                   <small>{admission.bed_allocation} | {admission.doctor_name}</small>
                   <p>{admission.diagnosis}</p>
                   <small>{admission.daily_progress}</small>
-                </div>
+                </button>
               ))}
             </div>
           </Panel>
-          <Panel title="Admit IPD Patient" subtitle="Create a new indoor management record for Panchakarma and supervised care.">
+          <Panel title="IPD Detail" subtitle="Focused indoor care view for treatment chart, schedule, medicines, diet, progress, discharge, and final invoice.">
+            {selectedAdmission ? (
+              <div className="detail-stack">
+                <div className="pill-row">
+                  <InfoPill text={selectedAdmission.status} />
+                  <InfoPill text={selectedAdmission.bed_allocation} />
+                  <InfoPill text={`Invoice ${formatCurrency(selectedAdmission.final_invoice)}`} />
+                </div>
+                <KeyValue label="Patient" value={selectedAdmission.patient_name} />
+                <KeyValue label="Doctor" value={selectedAdmission.doctor_name} />
+                <KeyValue label="Admission Date" value={formatDate(selectedAdmission.admission_date)} />
+                <KeyValue label="Diagnosis" value={selectedAdmission.diagnosis} />
+                <KeyValue label="Diet Plan" value={selectedAdmission.diet_plan} />
+                <KeyValue label="Daily Progress" value={selectedAdmission.daily_progress} />
+                <KeyValue label="Discharge Summary" value={selectedAdmission.discharge_summary} />
+                <div className="timeline">
+                  {selectedAdmission.daily_treatment_chart.map((entry) => (
+                    <div key={`${selectedAdmission.id}-${entry.day}`} className="timeline-item">
+                      <strong>{entry.day}</strong>
+                      <small>{entry.treatment}</small>
+                      <p>{entry.progress}</p>
+                    </div>
+                  ))}
+                </div>
+                <KeyValue label="Panchakarma Schedule" value={selectedAdmission.panchakarma_schedule.join(', ')} />
+                <KeyValue label="Medicine Administration" value={selectedAdmission.medicine_administration.join(', ')} />
+              </div>
+            ) : (
+              <EmptyState title="No IPD case selected" text="Select an indoor case to review the treatment and discharge detail." />
+            )}
+          </Panel>
+        </div>
+        <Panel title="Admit IPD Patient" subtitle="Create a new indoor management record for Panchakarma and supervised care.">
             <form className="form-grid" onSubmit={handleAdmissionSubmit}>
               <select value={admissionForm.patient_id} onChange={(event) => setAdmissionForm({ ...admissionForm, patient_id: event.target.value })} required>
                 <option value="">Patient</option>
                 {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
               </select>
-              <input value={admissionForm.doctor_name} onChange={(event) => setAdmissionForm({ ...admissionForm, doctor_name: event.target.value })} placeholder="Doctor name" required />
+              <select value={admissionForm.doctor_name} onChange={(event) => setAdmissionForm({ ...admissionForm, doctor_name: event.target.value })} required>
+                {doctorDirectory.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
+              </select>
               <input type="date" value={admissionForm.admission_date} onChange={(event) => setAdmissionForm({ ...admissionForm, admission_date: event.target.value })} required />
               <input value={admissionForm.bed_allocation} onChange={(event) => setAdmissionForm({ ...admissionForm, bed_allocation: event.target.value })} placeholder="Bed allocation" required />
               <textarea value={admissionForm.diagnosis} onChange={(event) => setAdmissionForm({ ...admissionForm, diagnosis: event.target.value })} placeholder="Diagnosis" />
@@ -1283,8 +1315,7 @@ function App() {
               </select>
               <button type="submit" className="primary-button">Save Admission</button>
             </form>
-          </Panel>
-        </div>
+        </Panel>
       </div>
     )
   }
@@ -1335,27 +1366,13 @@ function App() {
             ])}
           />
         </Panel>
-        <Panel title="Add Medicine" subtitle="Create new demo medicine master entries without backend dependency.">
-          <form className="form-grid" onSubmit={handleMedicineSubmit}>
-            <input value={medicineForm.medicine_name} onChange={(event) => setMedicineForm({ ...medicineForm, medicine_name: event.target.value })} placeholder="Medicine name" required />
-            <input value={medicineForm.category} onChange={(event) => setMedicineForm({ ...medicineForm, category: event.target.value })} placeholder="Category" required />
-            <input value={medicineForm.purchase_unit} onChange={(event) => setMedicineForm({ ...medicineForm, purchase_unit: event.target.value })} placeholder="Purchase unit" required />
-            <input value={medicineForm.dispensing_unit} onChange={(event) => setMedicineForm({ ...medicineForm, dispensing_unit: event.target.value })} placeholder="Dispensing unit" required />
-            <input value={medicineForm.unit_conversion} onChange={(event) => setMedicineForm({ ...medicineForm, unit_conversion: event.target.value })} placeholder="Unit conversion" required />
-            <input value={medicineForm.batch_number} onChange={(event) => setMedicineForm({ ...medicineForm, batch_number: event.target.value })} placeholder="Batch number" required />
-            <input type="number" min="0" value={medicineForm.purchase_price} onChange={(event) => setMedicineForm({ ...medicineForm, purchase_price: event.target.value })} placeholder="Purchase price" />
-            <input type="number" min="0" value={medicineForm.selling_price} onChange={(event) => setMedicineForm({ ...medicineForm, selling_price: event.target.value })} placeholder="Selling price" />
-            <input type="number" min="0" value={medicineForm.current_stock} onChange={(event) => setMedicineForm({ ...medicineForm, current_stock: event.target.value })} placeholder="Current stock" />
-            <input type="number" min="0" value={medicineForm.low_stock_level} onChange={(event) => setMedicineForm({ ...medicineForm, low_stock_level: event.target.value })} placeholder="Low stock threshold" />
-            <input type="date" value={medicineForm.expiry_date} onChange={(event) => setMedicineForm({ ...medicineForm, expiry_date: event.target.value })} />
-            <input value={medicineForm.manufacturer} onChange={(event) => setMedicineForm({ ...medicineForm, manufacturer: event.target.value })} placeholder="Manufacturer" />
-            <select value={medicineForm.supplier_id} onChange={(event) => setMedicineForm({ ...medicineForm, supplier_id: event.target.value })}>
-              <option value="">Supplier</option>
-              {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
-            </select>
-            <input type="number" min="0" value={medicineForm.monthly_movement} onChange={(event) => setMedicineForm({ ...medicineForm, monthly_movement: event.target.value })} placeholder="Monthly movement" />
-            <button type="submit" className="primary-button">Save Medicine</button>
-          </form>
+        <Panel title="Catalog Note" subtitle="Medicine master changes are kept in Clinic Admin so the operational catalog stays focused and clean.">
+          <div className="pill-row">
+            {(settings.supported_units || []).map((unit) => (
+              <InfoPill key={unit} text={unit} />
+            ))}
+          </div>
+          <p>Use the Clinic Admin module for medicine master maintenance, supplier updates, unit management, and purchase setup.</p>
         </Panel>
       </div>
     )
@@ -1431,7 +1448,6 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Billing" title="Invoices for consultations, medicines, packages, Panchakarma, and therapies with payment status and receipt printing." />
-        <ModuleNotice label="Invoice warning" text={DEMO_DISCLAIMER} />
         <div className="split-grid">
           <Panel title="Invoice Register" subtitle="Select a bill to review the printable receipt card.">
             <div className="list-stack">
@@ -1450,7 +1466,6 @@ function App() {
           <Panel title="Receipt Preview" subtitle="Printable demo receipt for training and testing.">
             {selectedInvoice ? (
               <div className="printable-card">
-                <ModuleNotice label="Demo billing" text={DEMO_DISCLAIMER} />
                 <KeyValue label="Invoice Number" value={selectedInvoice.invoice_number} />
                 <KeyValue label="Patient" value={selectedInvoice.patient_name} />
                 <KeyValue label="Bill Type" value={selectedInvoice.bill_type} />
@@ -1801,7 +1816,6 @@ function App() {
         case 'backup':
           return (
             <Panel title="Backup & Restore" subtitle="Local backup actions for demo and testing use only.">
-              <ModuleNotice label="Backup warning" text={DEMO_DISCLAIMER} />
               <div className="action-row">
                 <button type="button" className="primary-button" onClick={handleBackupGenerate}>Generate Backup</button>
                 <button type="button" className="ghost-button" onClick={handleBackupRestore}>Restore Backup</button>
@@ -1835,7 +1849,6 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Clinic Admin" title="Clinic administration with only the required management tools for daily operations." />
-        <ModuleNotice label="Admin warning" text={DEMO_DISCLAIMER} />
         <div className="admin-tab-row">
           {adminSections.map((section) => (
             <button
@@ -1886,12 +1899,11 @@ function App() {
 
   return (
     <div className="app-shell">
-      <DisclaimerBar text={DEMO_DISCLAIMER} />
       <aside className="sidebar">
         <div className="brand-block">
           <p className="eyebrow">BlueCare</p>
           <h1>{clinic.name}</h1>
-          <p>{clinic.location} | {clinic.contact}</p>
+          <p>{clinic.location}</p>
         </div>
         <nav className="nav-list">
           {navItems.map((item) => (
@@ -1909,41 +1921,12 @@ function App() {
       </aside>
       <main className="workspace">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">Ayurvedic Clinic Management System</p>
-            <h2>{navItems.find((item) => item.key === activeView)?.label || 'Dashboard'}</h2>
-          </div>
-          <div className="topbar-meta">
-            <InfoPill text={`${patients.length} patients`} />
-            <InfoPill text={`${medicineCatalog.length} medicines`} />
-            <InfoPill text={`${notifications.length} reminders`} />
-          </div>
+          <h2>{navItems.find((item) => item.key === activeView)?.label || 'Dashboard'}</h2>
         </header>
         {renderView()}
       </main>
       {toast ? <div className={`toast ${toast.tone}`}>{toast.message}</div> : null}
     </div>
-  )
-}
-
-function DisclaimerBar({ text }) {
-  return (
-    <div className="disclaimer-bar">
-      <div className="disclaimer-track">
-        <span>{text}</span>
-        <span>{text}</span>
-      </div>
-    </div>
-  )
-}
-
-function HeroCard({ eyebrow, title, description }) {
-  return (
-    <section className="hero-card">
-      <p className="eyebrow">{eyebrow}</p>
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </section>
   )
 }
 
@@ -1967,15 +1950,6 @@ function Panel({ title, subtitle, children }) {
       </div>
       {children}
     </section>
-  )
-}
-
-function ModuleNotice({ label, text }) {
-  return (
-    <div className="module-notice">
-      <strong>{label}</strong>
-      <p>{text}</p>
-    </div>
   )
 }
 
