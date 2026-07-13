@@ -1,6 +1,6 @@
 :root {
-  color: #05223c;
-  background: #f5fdff;
+  color: #213126;
+  background: #daf1de;
   font-family: 'Manrope', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -21,9 +21,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at top left, rgba(202, 240, 248, 0.9), transparent 26%),
-    linear-gradient(180deg, #f8fdff 0%, #eefbfe 100%);
+  background: #daf1de;
 }
 
 button,
@@ -34,8 +32,13 @@ textarea {
 }
 
 a {
-  color: inherit;
+  color: #8eb69b;
   text-decoration: none;
+}
+
+[data-theme='dark'] body {
+  background: #111814;
+  color: #edf3ee;
 }
 
 #root {
