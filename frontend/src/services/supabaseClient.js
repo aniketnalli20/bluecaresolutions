@@ -1,9 +1,10 @@
+import { requestClinicApiJson, resolveClinicId, resolvePrimaryApiBaseUrl } from './clinicApi'
+
 const SESSION_STORAGE_KEY = 'bluecare-clinic-auth-session'
 const AUTH_EVENT_NAME = 'bluecare-clinic-auth-change'
-const apiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '')
 
-export const hasSupabaseConfig = Boolean(apiBaseUrl)
-export const CLINIC_WORKSPACE_ID = import.meta.env.VITE_CLINIC_ID || 'sv-kini-ayurvedic-clinic'
+export const hasSupabaseConfig = Boolean(resolvePrimaryApiBaseUrl())
+export const CLINIC_WORKSPACE_ID = resolveClinicId()
 export const supabase = null
 
 function readSession() {
@@ -23,16 +24,6 @@ function writeSession(session) {
   }
 
   window.dispatchEvent(new CustomEvent(AUTH_EVENT_NAME, { detail: session }))
-}
-
-async function parseJson(response) {
-  const payload = await response.json().catch(() => null)
-
-  if (!response.ok) {
-    throw new Error(payload?.message || 'Authentication request failed.')
-  }
-
-  return payload
 }
 
 export async function getSupabaseSession() {
@@ -60,28 +51,40 @@ export function onSupabaseAuthStateChange(callback) {
 }
 
 export async function signInWithClinicPassword(email, password) {
-  const response = await fetch(`${apiBaseUrl}/api/auth/login?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const payload = await requestClinicApiJson(
+    `/api/auth/login?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
     },
-    body: JSON.stringify({ email, password }),
-  })
-  const payload = await parseJson(response)
+    {
+      requestFailed: 'Sign-in failed.',
+      networkFailed: 'Unable to reach the clinic login service. Start the backend server or update the API URL.',
+    },
+  )
   writeSession(payload.session || null)
 
   return payload
 }
 
 export async function signUpClinicUser({ email, password, fullName }) {
-  const response = await fetch(`${apiBaseUrl}/api/auth/register?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const payload = await requestClinicApiJson(
+    `/api/auth/register?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, fullName }),
     },
-    body: JSON.stringify({ email, password, fullName }),
-  })
-  const payload = await parseJson(response)
+    {
+      requestFailed: 'Account creation failed.',
+      networkFailed: 'Unable to reach the clinic registration service. Start the backend server or update the API URL.',
+    },
+  )
   writeSession(payload.session || null)
 
   return payload
@@ -100,7 +103,13 @@ export async function signOutClinicUser() {
 }
 
 export async function getClinicAuthUsers() {
-  const response = await fetch(`${apiBaseUrl}/api/auth/users?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`)
-  const payload = await parseJson(response)
+  const payload = await requestClinicApiJson(
+    `/api/auth/users?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`,
+    undefined,
+    {
+      requestFailed: 'Unable to load clinic users.',
+      networkFailed: 'Unable to reach the clinic backend to load users. Start the backend server or update the API URL.',
+    },
+  )
   return payload.users || []
 }

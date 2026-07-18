@@ -3716,7 +3716,13 @@ function App() {
   }
 
   function renderAuthExperience() {
-    const authStatusLabel = authError ? 'Validation issue' : authNotice ? 'Authentication status' : 'Secure access ready'
+    const authStatusLabel = authError
+      ? authError.toLowerCase().includes('unable to reach')
+        ? 'Connection issue'
+        : 'Validation issue'
+      : authNotice
+        ? 'Authentication status'
+        : 'Secure access ready'
     const authStatusMessage =
       authError ||
       authNotice ||
