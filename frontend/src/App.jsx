@@ -1943,6 +1943,19 @@ function App() {
         return
       }
 
+      const dailyTreatmentChart =
+        admissionForm.treatment_notes.trim() || admissionForm.daily_progress.trim()
+          ? [{ day: 'Day 1', treatment: admissionForm.treatment_notes.trim(), progress: admissionForm.daily_progress.trim() }]
+          : []
+      const panchakarmaSchedule = admissionForm.panchakarma_schedule
+        .split('\n')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+      const medicineAdministration = admissionForm.medicine_administration
+        .split('\n')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+
       const admission = {
         id: createRecordId('ipd'),
         patient_id: patient.id,
@@ -1969,9 +1982,9 @@ function App() {
         admission_date: admissionForm.admission_date || new Date().toISOString().slice(0, 10),
         bed_allocation: admissionForm.bed_allocation,
         diagnosis: admissionForm.diagnosis,
-        daily_treatment_chart: [{ day: 'Day 1', treatment: admissionForm.treatment_notes, progress: admissionForm.daily_progress }],
-        panchakarma_schedule: admissionForm.panchakarma_schedule.split('\n').filter(Boolean),
-        medicine_administration: admissionForm.medicine_administration.split('\n').filter(Boolean),
+        daily_treatment_chart: dailyTreatmentChart,
+        panchakarma_schedule: panchakarmaSchedule,
+        medicine_administration: medicineAdministration,
         diet_plan: admissionForm.diet_plan,
         daily_progress: admissionForm.daily_progress,
         discharge_summary: admissionForm.discharge_summary,
@@ -2695,82 +2708,240 @@ function App() {
           </Panel>
         </div>
         <Panel title="Admit IPD Patient" subtitle="Create a structured Ayurvedic patient record and indoor treatment workflow connected to the clinic backend.">
-            <form className="form-grid ipd-form-grid" onSubmit={handleAdmissionSubmit}>
-              <div className="form-banner full-span">
-                <div className="ipd-sheet-markers">
-                  <span>!! Om !!</span>
-                  <span>!! Shri !!</span>
-                  <span>!!!!</span>
-                </div>
-                <strong>Dr. S. V. Kini Ayurvedic Clinic & Panchakarma Centre</strong>
-                <small>Patient Record</small>
+          <form className="form-grid ipd-form-grid" onSubmit={handleAdmissionSubmit}>
+            <div className="form-banner full-span">
+              <div className="ipd-sheet-markers">
+                <span>!! Om !!</span>
+                <span>!! Shri !!</span>
+                <span>!!!!</span>
               </div>
-              <select value={admissionForm.patient_id} onChange={(event) => handleAdmissionPatientChange(event.target.value)} required>
-                <option value="">Patient</option>
-                {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
-              </select>
-              <input value={admissionForm.patient_name} onChange={(event) => setAdmissionForm({ ...admissionForm, patient_name: event.target.value })} placeholder="Patient Name" required />
-              <input type="date" value={admissionForm.record_date} onChange={(event) => setAdmissionForm({ ...admissionForm, record_date: event.target.value })} required />
-              <input value={admissionForm.place_of_birth} onChange={(event) => setAdmissionForm({ ...admissionForm, place_of_birth: event.target.value })} placeholder="Place of Birth" />
-              <input value={admissionForm.age} onChange={(event) => setAdmissionForm({ ...admissionForm, age: event.target.value })} placeholder="Age" />
-              <select value={admissionForm.gender} onChange={(event) => setAdmissionForm({ ...admissionForm, gender: event.target.value })}>
-                {genders.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-              <input type="date" value={admissionForm.date_of_birth} onChange={(event) => setAdmissionForm({ ...admissionForm, date_of_birth: event.target.value })} />
-              <input value={admissionForm.occupation} onChange={(event) => setAdmissionForm({ ...admissionForm, occupation: event.target.value })} placeholder="Occupation" />
-              <input value={admissionForm.mobile_no} onChange={(event) => setAdmissionForm({ ...admissionForm, mobile_no: event.target.value })} placeholder="Mobile No." />
-              <input type="email" value={admissionForm.email_id} onChange={(event) => setAdmissionForm({ ...admissionForm, email_id: event.target.value })} placeholder="Email ID" />
-              <input value={admissionForm.pulse_nadi} onChange={(event) => setAdmissionForm({ ...admissionForm, pulse_nadi: event.target.value })} placeholder="Pulse (Nadi)" />
-              <input value={admissionForm.tongue_jivha} onChange={(event) => setAdmissionForm({ ...admissionForm, tongue_jivha: event.target.value })} placeholder="Tongue (Jivha)" />
-              <select value={admissionForm.doctor_name} onChange={(event) => setAdmissionForm({ ...admissionForm, doctor_name: event.target.value })} required>
-                {doctorDirectory.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
-              </select>
-              <input type="date" value={admissionForm.admission_date} onChange={(event) => setAdmissionForm({ ...admissionForm, admission_date: event.target.value })} required />
-              <input value={admissionForm.bed_allocation} onChange={(event) => setAdmissionForm({ ...admissionForm, bed_allocation: event.target.value })} placeholder="Bed allocation" required />
-              <input value={admissionForm.weight} onChange={(event) => setAdmissionForm({ ...admissionForm, weight: event.target.value })} placeholder="Weight (Wt.)" />
-              <textarea className="full-span" value={admissionForm.chief_complaints} onChange={(event) => setAdmissionForm({ ...admissionForm, chief_complaints: event.target.value })} placeholder="Chief Complaint(s)" />
-              <div className="full-span complaint-checklist">
-                {complaintChecklist.map((item) => {
-                  const checked = admissionForm.complaint_flags.includes(item)
+              <strong>Dr. S. V. Kini Ayurvedic Clinic & Panchakarma Centre</strong>
+              <small>Patient Record</small>
+            </div>
 
-                  return (
-                    <label key={item} className={`complaint-chip ${checked ? 'active' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setAdmissionForm((current) => ({
-                            ...current,
-                            complaint_flags: checked
-                              ? current.complaint_flags.filter((value) => value !== item)
-                              : [...current.complaint_flags, item],
-                          }))
-                        }
-                      />
-                      <span>{item}</span>
-                    </label>
-                  )
-                })}
+            <div className="form-section full-span">
+              <div className="form-section-head">
+                <div>
+                  <p className="eyebrow">Identity</p>
+                  <h4>Patient record details</h4>
+                </div>
+                <small>Select an existing patient and complete the admission record in a clinical format.</small>
               </div>
-              <textarea value={admissionForm.diagnosis} onChange={(event) => setAdmissionForm({ ...admissionForm, diagnosis: event.target.value })} placeholder="Diagnosis" />
-              <textarea value={admissionForm.drug_allergy} onChange={(event) => setAdmissionForm({ ...admissionForm, drug_allergy: event.target.value })} placeholder="Drug Allergy" />
-              <textarea value={admissionForm.drug_reaction} onChange={(event) => setAdmissionForm({ ...admissionForm, drug_reaction: event.target.value })} placeholder="Drug Reaction" />
-              <textarea value={admissionForm.thyroid_disorder} onChange={(event) => setAdmissionForm({ ...admissionForm, thyroid_disorder: event.target.value })} placeholder="Thyroid Disorder" />
-              <textarea value={admissionForm.menstrual_history} onChange={(event) => setAdmissionForm({ ...admissionForm, menstrual_history: event.target.value })} placeholder="M/H - Menstrual History" />
-              <textarea value={admissionForm.obstetric_history} onChange={(event) => setAdmissionForm({ ...admissionForm, obstetric_history: event.target.value })} placeholder="O/H - Obstetric History" />
-              <textarea value={admissionForm.treatment_notes} onChange={(event) => setAdmissionForm({ ...admissionForm, treatment_notes: event.target.value })} placeholder="Daily treatment chart entry" />
-              <textarea value={admissionForm.panchakarma_schedule} onChange={(event) => setAdmissionForm({ ...admissionForm, panchakarma_schedule: event.target.value })} placeholder="Panchakarma schedule, one line per entry" />
-              <textarea value={admissionForm.medicine_administration} onChange={(event) => setAdmissionForm({ ...admissionForm, medicine_administration: event.target.value })} placeholder="Medicine administration, one line per entry" />
-              <textarea value={admissionForm.diet_plan} onChange={(event) => setAdmissionForm({ ...admissionForm, diet_plan: event.target.value })} placeholder="Diet plan" />
-              <textarea value={admissionForm.daily_progress} onChange={(event) => setAdmissionForm({ ...admissionForm, daily_progress: event.target.value })} placeholder="Daily progress" />
-              <textarea value={admissionForm.discharge_summary} onChange={(event) => setAdmissionForm({ ...admissionForm, discharge_summary: event.target.value })} placeholder="Discharge summary" />
-              <input value={admissionForm.final_invoice} onChange={(event) => setAdmissionForm({ ...admissionForm, final_invoice: event.target.value })} placeholder="Final invoice" type="number" min="0" />
-              <select value={admissionForm.status} onChange={(event) => setAdmissionForm({ ...admissionForm, status: event.target.value })}>
-                <option>Admitted</option>
-                <option>Discharged</option>
-              </select>
-              <button type="submit" className="primary-button">Save Admission</button>
-            </form>
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Patient</span>
+                  <select value={admissionForm.patient_id} onChange={(event) => handleAdmissionPatientChange(event.target.value)} required>
+                    <option value="">Select patient</option>
+                    {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
+                  </select>
+                </label>
+                <label className="form-field">
+                  <span>Patient Name</span>
+                  <input value={admissionForm.patient_name} onChange={(event) => setAdmissionForm({ ...admissionForm, patient_name: event.target.value })} placeholder="Patient Name" required />
+                </label>
+                <label className="form-field">
+                  <span>Date</span>
+                  <input type="date" value={admissionForm.record_date} onChange={(event) => setAdmissionForm({ ...admissionForm, record_date: event.target.value })} required />
+                </label>
+                <label className="form-field">
+                  <span>Place of Birth</span>
+                  <input value={admissionForm.place_of_birth} onChange={(event) => setAdmissionForm({ ...admissionForm, place_of_birth: event.target.value })} placeholder="Place of Birth" />
+                </label>
+                <label className="form-field">
+                  <span>Age</span>
+                  <input type="number" min="0" value={admissionForm.age} onChange={(event) => setAdmissionForm({ ...admissionForm, age: event.target.value })} placeholder="Age" />
+                </label>
+                <label className="form-field">
+                  <span>Gender</span>
+                  <select value={admissionForm.gender} onChange={(event) => setAdmissionForm({ ...admissionForm, gender: event.target.value })}>
+                    {genders.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label className="form-field">
+                  <span>Date of Birth</span>
+                  <input type="date" value={admissionForm.date_of_birth} onChange={(event) => setAdmissionForm({ ...admissionForm, date_of_birth: event.target.value })} />
+                </label>
+                <label className="form-field">
+                  <span>Occupation</span>
+                  <input value={admissionForm.occupation} onChange={(event) => setAdmissionForm({ ...admissionForm, occupation: event.target.value })} placeholder="Occupation" />
+                </label>
+              </div>
+            </div>
+
+            <div className="form-section full-span">
+              <div className="form-section-head">
+                <div>
+                  <p className="eyebrow">Clinical intake</p>
+                  <h4>Contact and examination</h4>
+                </div>
+                <small>Capture the examination and admission details used on the indoor patient record.</small>
+              </div>
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Mobile No.</span>
+                  <input type="tel" value={admissionForm.mobile_no} onChange={(event) => setAdmissionForm({ ...admissionForm, mobile_no: event.target.value })} placeholder="Mobile No." />
+                </label>
+                <label className="form-field">
+                  <span>Email ID</span>
+                  <input type="email" value={admissionForm.email_id} onChange={(event) => setAdmissionForm({ ...admissionForm, email_id: event.target.value })} placeholder="Email ID" />
+                </label>
+                <label className="form-field">
+                  <span>Pulse (Nadi)</span>
+                  <input value={admissionForm.pulse_nadi} onChange={(event) => setAdmissionForm({ ...admissionForm, pulse_nadi: event.target.value })} placeholder="Pulse (Nadi)" />
+                </label>
+                <label className="form-field">
+                  <span>Tongue (Jivha)</span>
+                  <input value={admissionForm.tongue_jivha} onChange={(event) => setAdmissionForm({ ...admissionForm, tongue_jivha: event.target.value })} placeholder="Tongue (Jivha)" />
+                </label>
+                <label className="form-field">
+                  <span>Weight (Wt.)</span>
+                  <input type="number" min="0" step="0.1" value={admissionForm.weight} onChange={(event) => setAdmissionForm({ ...admissionForm, weight: event.target.value })} placeholder="Weight in kg" />
+                </label>
+                <label className="form-field">
+                  <span>Doctor</span>
+                  <select value={admissionForm.doctor_name} onChange={(event) => setAdmissionForm({ ...admissionForm, doctor_name: event.target.value })} required>
+                    {doctorDirectory.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
+                  </select>
+                </label>
+                <label className="form-field">
+                  <span>Admission Date</span>
+                  <input type="date" value={admissionForm.admission_date} onChange={(event) => setAdmissionForm({ ...admissionForm, admission_date: event.target.value })} required />
+                </label>
+                <label className="form-field">
+                  <span>Bed Allocation</span>
+                  <input value={admissionForm.bed_allocation} onChange={(event) => setAdmissionForm({ ...admissionForm, bed_allocation: event.target.value })} placeholder="Bed allocation" required />
+                </label>
+              </div>
+            </div>
+
+            <div className="form-section full-span">
+              <div className="form-section-head">
+                <div>
+                  <p className="eyebrow">Complaint sheet</p>
+                  <h4>Chief Complaint(s)</h4>
+                </div>
+                <small>Record the chief complaint and tick the related history or illness markers.</small>
+              </div>
+              <label className="form-field full-span">
+                <span>Chief Complaint(s)</span>
+                <textarea value={admissionForm.chief_complaints} onChange={(event) => setAdmissionForm({ ...admissionForm, chief_complaints: event.target.value })} placeholder="Describe the patient’s primary complaints" />
+              </label>
+              <div className="complaint-sheet full-span">
+                <div className="ipd-note-block">
+                  <strong>!! Shri !!</strong>
+                  <p>Complaint checklist</p>
+                </div>
+                <div className="complaint-checklist">
+                  {complaintChecklist.map((item) => {
+                    const checked = admissionForm.complaint_flags.includes(item)
+
+                    return (
+                      <label key={item} className={`complaint-chip ${checked ? 'active' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setAdmissionForm((current) => ({
+                              ...current,
+                              complaint_flags: checked
+                                ? current.complaint_flags.filter((value) => value !== item)
+                                : [...current.complaint_flags, item],
+                            }))
+                          }
+                        />
+                        <span>{item}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="form-section full-span">
+              <div className="form-section-head">
+                <div>
+                  <p className="eyebrow">History</p>
+                  <h4>Clinical history and diagnosis</h4>
+                </div>
+                <small>Keep the additional history fields aligned with the printed patient record format.</small>
+              </div>
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Diagnosis</span>
+                  <textarea value={admissionForm.diagnosis} onChange={(event) => setAdmissionForm({ ...admissionForm, diagnosis: event.target.value })} placeholder="Diagnosis" />
+                </label>
+                <label className="form-field">
+                  <span>Drug Allergy</span>
+                  <textarea value={admissionForm.drug_allergy} onChange={(event) => setAdmissionForm({ ...admissionForm, drug_allergy: event.target.value })} placeholder="Drug Allergy" />
+                </label>
+                <label className="form-field">
+                  <span>Drug Reaction</span>
+                  <textarea value={admissionForm.drug_reaction} onChange={(event) => setAdmissionForm({ ...admissionForm, drug_reaction: event.target.value })} placeholder="Drug Reaction" />
+                </label>
+                <label className="form-field">
+                  <span>Thyroid Disorder</span>
+                  <textarea value={admissionForm.thyroid_disorder} onChange={(event) => setAdmissionForm({ ...admissionForm, thyroid_disorder: event.target.value })} placeholder="Thyroid Disorder" />
+                </label>
+                <label className="form-field">
+                  <span>M/H - Menstrual History</span>
+                  <textarea value={admissionForm.menstrual_history} onChange={(event) => setAdmissionForm({ ...admissionForm, menstrual_history: event.target.value })} placeholder="Menstrual history" />
+                </label>
+                <label className="form-field">
+                  <span>O/H - Obstetric History</span>
+                  <textarea value={admissionForm.obstetric_history} onChange={(event) => setAdmissionForm({ ...admissionForm, obstetric_history: event.target.value })} placeholder="Obstetric history" />
+                </label>
+              </div>
+            </div>
+
+            <div className="form-section full-span">
+              <div className="form-section-head">
+                <div>
+                  <p className="eyebrow">Treatment</p>
+                  <h4>Daily workflow and discharge</h4>
+                </div>
+                <small>These notes sync into the shared backend so the IPD record is available beyond one browser session.</small>
+              </div>
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Daily Treatment Chart Entry</span>
+                  <textarea value={admissionForm.treatment_notes} onChange={(event) => setAdmissionForm({ ...admissionForm, treatment_notes: event.target.value })} placeholder="Daily treatment chart entry" />
+                </label>
+                <label className="form-field">
+                  <span>Panchakarma Schedule</span>
+                  <textarea value={admissionForm.panchakarma_schedule} onChange={(event) => setAdmissionForm({ ...admissionForm, panchakarma_schedule: event.target.value })} placeholder="One line per Panchakarma entry" />
+                </label>
+                <label className="form-field">
+                  <span>Medicine Administration</span>
+                  <textarea value={admissionForm.medicine_administration} onChange={(event) => setAdmissionForm({ ...admissionForm, medicine_administration: event.target.value })} placeholder="One line per medicine entry" />
+                </label>
+                <label className="form-field">
+                  <span>Diet Plan</span>
+                  <textarea value={admissionForm.diet_plan} onChange={(event) => setAdmissionForm({ ...admissionForm, diet_plan: event.target.value })} placeholder="Diet plan" />
+                </label>
+                <label className="form-field">
+                  <span>Daily Progress</span>
+                  <textarea value={admissionForm.daily_progress} onChange={(event) => setAdmissionForm({ ...admissionForm, daily_progress: event.target.value })} placeholder="Daily progress" />
+                </label>
+                <label className="form-field">
+                  <span>Discharge Summary</span>
+                  <textarea value={admissionForm.discharge_summary} onChange={(event) => setAdmissionForm({ ...admissionForm, discharge_summary: event.target.value })} placeholder="Discharge summary" />
+                </label>
+                <label className="form-field">
+                  <span>Final Invoice</span>
+                  <input value={admissionForm.final_invoice} onChange={(event) => setAdmissionForm({ ...admissionForm, final_invoice: event.target.value })} placeholder="Final invoice" type="number" min="0" />
+                </label>
+                <label className="form-field">
+                  <span>Status</span>
+                  <select value={admissionForm.status} onChange={(event) => setAdmissionForm({ ...admissionForm, status: event.target.value })}>
+                    <option>Admitted</option>
+                    <option>Discharged</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" className="primary-button full-span">Save Admission</button>
+          </form>
         </Panel>
       </div>
     )
@@ -3545,78 +3716,39 @@ function App() {
   }
 
   function renderAuthExperience() {
-    const normalizedAuthEmail = normalizeEmail(authForm.email)
-    const backendProfiles =
-      authDirectory.map((profile) => ({
-        fullName: profile.full_name,
-        email: profile.email,
-        role: profile.role,
-        note: `${profile.status} account available from the shared clinic server.`,
-      })) || []
-    const visibleProfiles = backendProfiles.length ? backendProfiles : seededAccessProfiles
-    const selectedAccessProfile =
-      visibleProfiles.find((profile) => normalizeEmail(profile.email) === normalizedAuthEmail) || visibleProfiles[0]
+    const sharedUserCount = authDirectory.length || seededAccessProfiles.length
     const authStatusLabel = authError ? 'Validation issue' : authNotice ? 'Authentication status' : 'Secure access ready'
     const authStatusMessage =
       authError ||
       authNotice ||
-      'Clinic accounts are loaded from the shared backend, so user access is visible beyond a single browser session.'
+      'Clinic accounts come from the shared backend, so access is available beyond a single browser session.'
     const heading = authMode === 'sign-up' ? 'Register clinic access' : 'Login to clinic workspace'
     const description =
       authMode === 'sign-up'
-        ? 'Create a clinic account against the shared backend using the BlueCare access design.'
+        ? 'Create a clinic account against the shared backend using the Bluecares access design.'
         : 'Use your clinic email and password to sign in through the shared clinic backend.'
 
     return (
       <div className="auth-shell auth-shell-bluecare">
         <section className="auth-hero auth-hero-bluecare">
           <div className="auth-hero-copy">
-            <p className="eyebrow">BlueCare access</p>
+            <p className="eyebrow">Bluecares access</p>
             <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
             <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
             <div className="auth-brand-strip">
+              <span>Bluecares</span>
               <span>Login</span>
               <span>Register</span>
-              <span>Shared Clinic Users</span>
             </div>
           </div>
           <div className="auth-welcome-card">
             <p className="eyebrow">Welcome</p>
-            <h3>Secure access with BlueCare styling</h3>
+            <h3>Bluecares login with shared backend access</h3>
             <small>Only login and register actions are kept here. Accounts come from the MySQL-backed clinic service, not from local-only browser state.</small>
           </div>
-          <div className="auth-seed-panel">
-            <div className="auth-seed-head">
-              <div>
-                <p className="eyebrow">Shared users</p>
-                <h3>Clinic accounts from backend</h3>
-              </div>
-              <small>{authDirectoryLoading ? 'Loading users from backend...' : `${visibleProfiles.length} shared clinic users available.`}</small>
-            </div>
-            <div className="auth-profile-grid">
-              {visibleProfiles.map((profile) => {
-                const isActive = normalizeEmail(profile.email) === normalizedAuthEmail
-
-                return (
-                  <div key={profile.email} className={`auth-profile-card ${isActive ? 'active' : ''}`}>
-                    <div className="auth-profile-meta">
-                      <strong>{profile.fullName}</strong>
-                      <small>{profile.role}</small>
-                      <small>{profile.email}</small>
-                    </div>
-                    <small>{profile.note}</small>
-                    <div className="auth-profile-actions">
-                      <button type="button" className="ghost-button" onClick={() => handlePrepareSeededAccess(profile, 'sign-in')}>
-                        Use Login
-                      </button>
-                      <button type="button" className="primary-button" onClick={() => handlePrepareSeededAccess(profile, 'sign-up')}>
-                        Use Register
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="auth-note auth-note-accent">
+            <strong>{authDirectoryLoading ? 'Loading shared users from backend' : `${sharedUserCount} shared clinic users available`}</strong>
+            <small>Demo credentials are stored in `bluecares-user-credentials.txt`, and registered users continue to live in the backend database.</small>
           </div>
         </section>
         <section className="panel auth-card auth-card-bluecare">
@@ -3645,15 +3777,16 @@ function App() {
             <strong>{authStatusLabel}</strong>
             <small>{authStatusMessage}</small>
           </div>
-          {selectedAccessProfile ? (
-            <div className="auth-selected-profile">
-              <span className="status-pill primary">{selectedAccessProfile.role}</span>
-              <div>
-                <strong>{selectedAccessProfile.fullName}</strong>
-                <small>{selectedAccessProfile.email}</small>
-              </div>
+          <div className="auth-summary-grid">
+            <div className="auth-note auth-note-soft">
+              <strong>Shared users</strong>
+              <small>{authDirectoryLoading ? 'Fetching live user list from the backend.' : `${sharedUserCount} users are available through the shared clinic backend.`}</small>
             </div>
-          ) : null}
+            <div className="auth-note auth-note-soft">
+              <strong>Credentials file</strong>
+              <small>Use `bluecares-user-credentials.txt` for the seeded demo accounts during development and testing.</small>
+            </div>
+          </div>
           {authMode === 'sign-in' ? (
             <form className="auth-form" onSubmit={handleAuthSignIn}>
               <label className="auth-field">
@@ -3733,7 +3866,7 @@ function App() {
               </button>
             </form>
           ) : null}
-          <small>Credential samples are stored in `backend/demo-user-credentials.txt` and the visible users above are loaded from the shared backend route.</small>
+          <small>The shared user directory is loaded from `/api/auth/users`, while login and registration post to the same backend so accounts are not limited to one browser.</small>
         </section>
       </div>
     )
