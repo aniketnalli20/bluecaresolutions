@@ -1,6 +1,6 @@
 # S.V. Kini Ayurvedic clinic
 
-S.V. Kini Ayurvedic clinic is a React-only clinic workspace focused on daily operations with a clean healthcare UI and local data.
+S.V. Kini Ayurvedic clinic is a clinic workspace with a Vite + React frontend and a separate Node + Express + MySQL backend for database connectivity.
 
 ## Production URL
 
@@ -20,6 +20,10 @@ S.V. Kini Ayurvedic clinic is a React-only clinic workspace focused on daily ope
 
 ```text
 bluecaresolutions/
+|-- backend/
+|   |-- database/
+|   |-- src/
+|   `-- package.json
 |-- frontend/
 |   |-- public/
 |   |-- package.json
@@ -45,3 +49,4 @@ bluecaresolutions/
 
 - The app supports clinic data persistence with seeded demo records on first load.
 - The clinic admin panel still includes backup, restore, and reset support.
+- The `backend/` folder now contains a Node + Express + MySQL API for a real database-backed workflow.

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { env } from '../config/env.js'
 import { getPool } from '../db/pool.js'
 import { parseJsonField, toJsonString } from '../utils/json.js'
