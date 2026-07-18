@@ -7,10 +7,30 @@ import healthRoutes from './routes/healthRoutes.js'
 import workspaceRoutes from './routes/workspaceRoutes.js'
 
 const app = express()
+const configuredCorsOrigins = env.corsOrigin.split(',').map((value) => value.trim()).filter(Boolean)
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) {
+    return true
+  }
+
+  if (configuredCorsOrigins.includes(origin)) {
+    return true
+  }
+
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
+}
 
 app.use(
   cors({
-    origin: env.corsOrigin.split(',').map((value) => value.trim()),
+    origin(origin, callback) {
+      if (isAllowedCorsOrigin(origin)) {
+        callback(null, true)
+        return
+      }
+
+      callback(new Error(`CORS origin not allowed: ${origin}`))
+    },
     credentials: true,
   }),
 )
