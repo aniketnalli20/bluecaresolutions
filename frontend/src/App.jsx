@@ -60,6 +60,106 @@ const complaintChecklist = [
 ]
 const emptyList = []
 const emptyObject = {}
+const tutorialGuides = {
+  Dashboard: {
+    title: 'Start the day from this dashboard',
+    summary: 'Use the dashboard to review queue pressure, follow-ups, and stock risk before the first consultation starts.',
+    tips: ['Check appointments and follow-up counts first.', 'Use Quick Action Cards to jump into the next operational module.', 'Review stock and expiry warnings before billing or dispensing.'],
+    tags: ['Start Here', 'Daily Snapshot', 'Quick Actions'],
+  },
+  Patients: {
+    title: 'Build a complete patient profile',
+    summary: 'Search existing patient records on the left, review the profile in the middle, and register new patients at the bottom.',
+    tips: ['Use the search box for name, patient ID, phone, or occupation.', 'Keep history fields detailed so OPD and IPD teams can reuse the same patient record.', 'Set a follow-up date during registration whenever the patient needs review.'],
+    tags: ['Search', 'History', 'Follow-up'],
+  },
+  VisitPlanner: {
+    title: 'Plan the clinic queue clearly',
+    summary: 'Use Visit Planner for appointments, walk-ins, doctor assignment, and queue visibility.',
+    tips: ['Choose an existing patient when possible to keep records connected.', 'Use walk-in patient name only when the patient is not yet registered.', 'Status values should move from Scheduled to Checked In to Completed.'],
+    tags: ['Queue', 'Scheduling', 'Doctor Calendar'],
+  },
+  OPD: {
+    title: 'Document one full OPD consultation',
+    summary: 'Select the patient, load a disease template if helpful, write the consultation note, then capture charges for billing.',
+    tips: ['Disease templates speed up common prescription patterns.', 'Keep prescription lines in the guided pipe format for clean parsing.', 'Capture diet, lifestyle, and Panchakarma advice in the same consultation for printing.'],
+    tags: ['Templates', 'Prescription', 'Billing Ready'],
+  },
+  IPD: {
+    title: 'Admit and manage indoor patients step by step',
+    summary: 'The IPD module follows a clinical sequence: patient identity, clinical intake, complaint sheet, history, then treatment workflow.',
+    tips: ['Select an existing patient first to reuse contact and demographic details.', 'Use the complaint checklist for fast indoor case marking.', 'Write Panchakarma and medicine administration one line per entry for cleaner records.'],
+    tags: ['Admission', 'Clinical Intake', 'Treatment Workflow'],
+  },
+  DiseaseMaster: {
+    title: 'Create reusable treatment templates',
+    summary: 'Disease templates reduce repeated OPD typing and keep medicine formatting consistent.',
+    tips: ['Use one medicine instruction per line in the guided prescription format.', 'Add diet and lifestyle advice so OPD doctors can load a full template.', 'Keep notes brief and clinically relevant.'],
+    tags: ['Reusable', 'Template Library'],
+  },
+  Medicines: {
+    title: 'Review the dispensing catalog',
+    summary: 'This screen is for quick review, while structural medicine edits remain in Clinic Admin.',
+    tips: ['Check stock, unit conversion, and supplier before dispensing.', 'Low stock and expiry indicators are shared with inventory and dashboard alerts.'],
+    tags: ['Catalog', 'Stock', 'Admin Controlled'],
+  },
+  Packages: {
+    title: 'Use packages for repeat-care planning',
+    summary: 'Packages combine medicines, consultations, therapies, and follow-up rhythm into one clinic offering.',
+    tips: ['Match package validity with the patient follow-up cycle.', 'Use therapy and Panchakarma counts to keep package pricing clear.'],
+    tags: ['Retention', 'Follow-up Plans'],
+  },
+  Inventory: {
+    title: 'Keep medicine stock reliable',
+    summary: 'Use Inventory for warning review and quick stock movement entries.',
+    tips: ['Select Stock In for received medicines and Stock Out for dispensing or corrections.', 'Review purchase history below the form when checking supplier activity.'],
+    tags: ['Warnings', 'Stock In/Out'],
+  },
+  Billing: {
+    title: 'Turn treatment activity into a clean invoice',
+    summary: 'Choose the patient, enter consultation and therapy charges, then confirm payment status before saving.',
+    tips: ['Use the receipt preview to check totals before printing.', 'Keep discount and paid amount realistic so outstanding balances remain visible.', 'Choose the correct bill type for easier reporting later.'],
+    tags: ['Invoices', 'Receipt Preview', 'Payment Status'],
+  },
+  Reports: {
+    title: 'Read clinic performance quickly',
+    summary: 'Reports combine revenue, visits, medicine sales, and operational statistics into one summary view.',
+    tips: ['Use daily and monthly revenue together for a quick financial pulse.', 'Track OPD and IPD counts together to understand care mix.'],
+    tags: ['Finance', 'Operations'],
+  },
+  Notifications: {
+    title: 'Act on the next important reminder',
+    summary: 'This feed collects appointment, follow-up, package, low stock, and expiry reminders.',
+    tips: ['Clear high-priority operational items first, especially low stock and follow-up reminders.'],
+    tags: ['Alerts', 'Follow-up'],
+  },
+  Admin: {
+    title: 'Control the clinic setup from one place',
+    summary: 'Clinic Admin manages users, masters, purchases, settings, reports, and backups.',
+    tips: ['Start with User Management and System Settings during first-time setup.', 'Use Backup and Restore before large demo or training changes.'],
+    tags: ['Setup', 'Masters', 'Backup'],
+  },
+}
+const adminTutorialGuides = {
+  overview: {
+    title: 'Use Admin Overview for readiness checks',
+    summary: 'Review administrator accounts, linked sign-in status, and the first admin setup recommendation here.',
+    tips: ['Confirm at least one administrator has an email ready for sign-in.', 'Use the seeded admin email for the quickest first setup.'],
+    tags: ['Admin Setup', 'Readiness'],
+  },
+  users: {
+    title: 'Keep user access organized',
+    summary: 'Create staff members with the correct role, sign-in email, and module access in one step.',
+    tips: ['Set role first so default module access is applied automatically.', 'Add a valid email whenever the staff member needs login access.', 'Use the access chips to tighten permissions for non-admin users.'],
+    tags: ['Roles', 'Access', 'Sign-in Email'],
+  },
+  settings: {
+    title: 'Save clinic-wide defaults carefully',
+    summary: 'These settings affect warnings, receipt text, and clinic identity across the app.',
+    tips: ['Keep clinic hours and contact details current for printed outputs.', 'Low stock and near expiry thresholds shape dashboard and inventory warnings.'],
+    tags: ['Thresholds', 'Clinic Identity'],
+  },
+}
 
 const initialPatientForm = {
   name: '',
@@ -514,6 +614,7 @@ function App() {
   })
   const [activeView, setActiveView] = useState('Dashboard')
   const [theme, setTheme] = useState(() => localStorage.getItem('bluecare-clinic-theme') || 'light')
+  const [tutorialMode, setTutorialMode] = useState(() => localStorage.getItem('bluecare-tutorial-mode') !== 'off')
   const [toast, setToast] = useState(null)
   const [patientQuery, setPatientQuery] = useState('')
   const [patientFilter, setPatientFilter] = useState('All')
@@ -662,6 +763,10 @@ function App() {
   }, [theme])
 
   useEffect(() => {
+    localStorage.setItem('bluecare-tutorial-mode', tutorialMode ? 'on' : 'off')
+  }, [tutorialMode])
+
+  useEffect(() => {
     if (!toast) {
       return undefined
     }
@@ -757,6 +862,13 @@ function App() {
   )
   const canSwitchUsers = !hasSupabaseConfig
   const resolvedActiveView = accessibleViewSet.has(activeView) ? activeView : accessibleNavItems[0]?.key || 'Dashboard'
+  const activeTutorialGuide = useMemo(
+    () =>
+      resolvedActiveView === 'Admin'
+        ? adminTutorialGuides[activeAdminSection] || tutorialGuides.Admin
+        : tutorialGuides[resolvedActiveView] || null,
+    [activeAdminSection, resolvedActiveView],
+  )
   const administratorUsers = useMemo(
     () => users.filter((user) => ['Clinic Administrator', 'Chief Ayurvedic Physician'].includes(user.role)),
     [users],
@@ -2311,10 +2423,27 @@ function App() {
     return <div className="loading-screen">{!authReady ? 'Checking authentication...' : 'Loading workspace...'}</div>
   }
 
+  function renderTutorialBanner(viewKey, overrideGuide = null) {
+    if (!tutorialMode) {
+      return null
+    }
+
+    const guide =
+      overrideGuide ||
+      (viewKey === 'Admin' ? adminTutorialGuides[activeAdminSection] || tutorialGuides.Admin : tutorialGuides[viewKey] || null)
+
+    if (!guide) {
+      return null
+    }
+
+    return <TutorialBanner title={guide.title} summary={guide.summary} tips={guide.tips} tags={guide.tags} />
+  }
+
   function renderDashboard() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Dashboard" title="Appointments, patients, revenue, stock, and follow-up overview." />
+        {renderTutorialBanner('Dashboard')}
         <div className="card-grid four">
           <StatCard label="Today's Appointments" value={dashboard.todaysAppointments?.length || 0} tone="info" />
           <StatCard label="OPD Patient Count" value={dashboard.opdPatientCount || 0} tone="primary" />
@@ -2378,6 +2507,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Patient Management" title="Detailed patient profiles with history, search, filters, visit timeline, and follow-up reminders." />
+        {renderTutorialBanner('Patients')}
         <div className="toolbar">
           <input value={patientQuery} onChange={(event) => setPatientQuery(event.target.value)} placeholder="Search by name, patient ID, phone, or occupation" />
           <select value={patientFilter} onChange={(event) => setPatientFilter(event.target.value)}>
@@ -2436,6 +2566,12 @@ function App() {
           </Panel>
         </div>
         <Panel title="Register Patient" subtitle="Add new locally stored demo patients for OPD and IPD planning.">
+          {tutorialMode ? (
+            <TutorialNote
+              text="Capture contact details, history, and follow-up date here so OPD and IPD teams can reuse the same patient profile later."
+              tags={['Identity', 'History', 'Reminder']}
+            />
+          ) : null}
           <form className="form-grid" onSubmit={handlePatientSubmit}>
             <input value={patientForm.name} onChange={(event) => setPatientForm({ ...patientForm, name: event.target.value })} placeholder="Patient name" required />
             <input value={patientForm.age} onChange={(event) => setPatientForm({ ...patientForm, age: event.target.value })} placeholder="Age" type="number" min="0" required />
@@ -2462,6 +2598,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Visit Planner" title="Appointments, walk-ins, follow-up scheduling, therapy planning, doctor calendar, and the daily consultation queue." />
+        {renderTutorialBanner('VisitPlanner')}
         <div className="card-grid four">
           <StatCard label="Scheduled" value={visits.filter((visit) => visit.status === 'Scheduled').length} tone="primary" />
           <StatCard label="Checked In" value={visits.filter((visit) => visit.status === 'Checked In').length} tone="warning" />
@@ -2517,6 +2654,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="OPD Management" title="Ayurvedic consultations with symptoms, Nadi examination, diagnosis, prescription, diet, lifestyle, Panchakarma advice, and billing." />
+        {renderTutorialBanner('OPD')}
         <div className="split-grid">
           <Panel title="Recent Consultations" subtitle="Select any consultation to review the printable Ayurvedic prescription summary.">
             <div className="list-stack">
@@ -2560,6 +2698,12 @@ function App() {
           </Panel>
         </div>
         <Panel title="New OPD Consultation" subtitle="Load a disease template directly into the prescription and recommendations.">
+          {tutorialMode ? (
+            <TutorialNote
+              text="Recommended flow: select patient, optionally load a disease template, complete consultation details, then enter charges for billing."
+              tags={['Patient', 'Template', 'Consultation', 'Charges']}
+            />
+          ) : null}
           <div className="template-toolbar">
             {diseaseMaster.map((item) => (
               <button key={item.id} type="button" className="chip-button" onClick={() => applyDiseaseTemplate(item.id)}>
@@ -2611,6 +2755,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="IPD Management" title="Indoor patient admission, bed allocation, daily treatment chart, Panchakarma schedule, medicines, diet, progress, discharge summary, and final invoice." />
+        {renderTutorialBanner('IPD')}
         <div className="card-grid three">
           <StatCard label="Active Admissions" value={ipdAdmissions.filter((item) => item.status === 'Admitted').length} tone="warning" />
           <StatCard label="Discharged Cases" value={ipdAdmissions.filter((item) => item.status === 'Discharged').length} tone="success" />
@@ -2709,6 +2854,12 @@ function App() {
           </Panel>
         </div>
         <Panel title="Admit IPD Patient" subtitle="Create a structured Ayurvedic patient record and indoor treatment workflow connected to the clinic backend.">
+          {tutorialMode ? (
+            <TutorialNote
+              text="Follow the form from top to bottom: identity, clinical intake, complaint sheet, history, then treatment workflow. This keeps the indoor case sheet complete."
+              tags={['Step 1 Identity', 'Step 2 Intake', 'Step 3 Complaint', 'Step 4 Treatment']}
+            />
+          ) : null}
           <form className="form-grid ipd-form-grid" onSubmit={handleAdmissionSubmit}>
             <div className="form-banner full-span">
               <div className="ipd-sheet-markers">
@@ -2952,6 +3103,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Disease Master" title="Illness templates with predefined medicines, dosage, duration, diet advice, lifestyle advice, and notes." />
+        {renderTutorialBanner('DiseaseMaster')}
         <div className="card-grid two">
           {diseaseMaster.map((item) => (
             <Panel key={item.id} title={item.illness} subtitle={item.notes}>
@@ -2978,6 +3130,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Medicine Catalog" title="Unit-based Ayurvedic medicine catalog with purchase units, dispensing units, conversion, pricing, stock, batch, supplier, and expiry." />
+        {renderTutorialBanner('Medicines')}
         <Panel title="Medicine Catalog" subtitle="High-quality dummy medicine data stored locally in the browser.">
           <SimpleTable
             columns={['Medicine', 'Category', 'Purchase Unit', 'Dispensing Unit', 'Conversion', 'Batch', 'Stock', 'Expiry', 'Supplier']}
@@ -3010,6 +3163,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Package Management" title="Default 1, 3, and 6 month treatment plans with consultations, follow-ups, therapies, Panchakarma, discounts, validity, and renewal reminders." />
+        {renderTutorialBanner('Packages')}
         <div className="card-grid three">
           {packages.map((item) => (
             <Panel key={item.id} title={item.name} subtitle={`Validity ${item.package_validity} | Discount ${item.discount}`}>
@@ -3030,6 +3184,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Inventory Management" title="Stock in, stock out, adjustments, physical verification, supplier tracking, purchase history, and color-coded stock warnings." />
+        {renderTutorialBanner('Inventory')}
         <div className="card-grid five">
           <StatCard label="Low Stock" value={warningBuckets.low.length} tone="warning" />
           <StatCard label="Out of Stock" value={warningBuckets.out.length} tone="danger" />
@@ -3076,6 +3231,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Billing" title="Invoices for consultations, medicines, packages, Panchakarma, and therapies with payment status and receipt printing." />
+        {renderTutorialBanner('Billing')}
         <div className="split-grid">
           <Panel title="Invoice Register" subtitle="Select a bill to review the printable receipt card.">
             <div className="list-stack">
@@ -3115,6 +3271,12 @@ function App() {
           </Panel>
         </div>
         <Panel title="Create Invoice" subtitle="Generate local invoices with discounts and payment tracking.">
+          {tutorialMode ? (
+            <TutorialNote
+              text="Use this form after OPD, IPD, medicine, or package activity is finalized so billing totals remain easy to reconcile."
+              tags={['Bill Type', 'Charges', 'Payment']}
+            />
+          ) : null}
           <form className="form-grid" onSubmit={handleInvoiceSubmit}>
             <select value={invoiceForm.patient_id} onChange={(event) => setInvoiceForm({ ...invoiceForm, patient_id: event.target.value })} required>
               <option value="">Patient</option>
@@ -3145,6 +3307,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Reports" title="Daily revenue, monthly revenue, patient visits, medicine sales, inventory, low stock, expiry, package sales, OPD statistics, and IPD statistics." />
+        {renderTutorialBanner('Reports')}
         <div className="card-grid five">
           <StatCard label="Daily Revenue" value={formatCurrency(reports.dailyRevenue || 0)} tone="success" />
           <StatCard label="Monthly Revenue" value={formatCurrency(reports.monthlyRevenue || 0)} tone="primary" />
@@ -3167,6 +3330,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Notifications" title="Appointment, follow-up, package expiry, low stock, and medicine expiry reminders generated from local demo data." />
+        {renderTutorialBanner('Notifications')}
         <div className="list-stack">
           {notifications.map((item) => (
             <div key={item.id} className="list-card">
@@ -3623,6 +3787,7 @@ function App() {
     return (
       <div className="view-stack">
         <SectionIntro eyebrow="Clinic Admin" title="Clinic administration with only the required management tools for daily operations." />
+        {renderTutorialBanner('Admin')}
         <div className="admin-tab-row">
           {adminSections.map((section) => (
             <button
@@ -3718,10 +3883,21 @@ function App() {
 
   function renderAuthExperience() {
     const navLinks = ['Login', 'Register']
+    const normalizedAuthError = String(authError || '').toLowerCase()
+    const isConnectionError = normalizedAuthError.includes('unable to reach')
+    const isValidationError =
+      normalizedAuthError.includes('invalid email') ||
+      normalizedAuthError.includes('password') ||
+      normalizedAuthError.includes('full name') ||
+      normalizedAuthError.includes('confirmation') ||
+      normalizedAuthError.includes('already exists') ||
+      normalizedAuthError.includes('valid email')
     const authStatusLabel = authError
-      ? authError.toLowerCase().includes('unable to reach')
+      ? isConnectionError
         ? 'Connection issue'
-        : 'Validation issue'
+        : isValidationError
+          ? 'Validation issue'
+          : 'Authentication issue'
       : authNotice
         ? 'Authentication status'
         : 'Secure access ready'
@@ -3780,9 +3956,8 @@ function App() {
                       type="email"
                       value={authForm.email}
                       onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
-                      placeholder="Email Address"
+                      placeholder="Any email address"
                       autoComplete="email"
-                      required
                     />
                   </span>
                 </label>
@@ -3794,9 +3969,8 @@ function App() {
                       type="password"
                       value={authForm.password}
                       onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
-                      placeholder="Password"
+                      placeholder="Any password"
                       autoComplete="current-password"
-                      required
                     />
                   </span>
                 </label>
@@ -3971,6 +4145,13 @@ function App() {
           </button>
           <small>Press Ctrl+K to search across patients, visits, medicines, invoices, suppliers, and users.</small>
         </div>
+        <div className="sidebar-card">
+          <strong>Tutorial Mode</strong>
+          <button type="button" className={tutorialMode ? 'chip-button active-chip' : 'ghost-button'} onClick={() => setTutorialMode((current) => !current)}>
+            {tutorialMode ? 'Tutorial On' : 'Tutorial Off'}
+          </button>
+          <small>{activeTutorialGuide?.summary || 'Turn this on to see onboarding guidance across the clinic workspace.'}</small>
+        </div>
       </aside>
       <main className="workspace">
         <header className="topbar">
@@ -4000,6 +4181,13 @@ function App() {
             ) : null}
             <button type="button" className="ghost-button" onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}>
               {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </button>
+            <button
+              type="button"
+              className={tutorialMode ? 'chip-button active-chip' : 'ghost-button'}
+              onClick={() => setTutorialMode((current) => !current)}
+            >
+              {tutorialMode ? 'Hide Tips' : 'Show Tips'}
             </button>
             {hasSupabaseConfig ? (
               <button type="button" className="ghost-button" onClick={handleSignOut} disabled={authBusy}>
@@ -4039,6 +4227,48 @@ function Panel({ title, subtitle, children }) {
   )
 }
 
+function TutorialBanner({ title, summary, tips = [], tags = [] }) {
+  return (
+    <section className="tutorial-banner">
+      <div className="tutorial-banner-head">
+        <div>
+          <p className="eyebrow">Tutorial Mode</p>
+          <h3>{title}</h3>
+          <p>{summary}</p>
+        </div>
+        <div className="tutorial-tag-row">
+          {tags.map((tag) => (
+            <InfoTag key={tag} label={tag} />
+          ))}
+        </div>
+      </div>
+      <div className="tutorial-tip-list">
+        {tips.map((tip) => (
+          <div key={tip} className="tutorial-tip-card">
+            <strong>Tip</strong>
+            <p>{tip}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function TutorialNote({ text, tags = [] }) {
+  return (
+    <div className="tutorial-note">
+      <p>{text}</p>
+      {tags.length ? (
+        <div className="tutorial-tag-row">
+          {tags.map((tag) => (
+            <InfoTag key={tag} label={tag} tone="soft" />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function StatCard({ label, value, tone = 'info' }) {
   return (
     <div className={`stat-card ${tone}`}>
@@ -4050,6 +4280,10 @@ function StatCard({ label, value, tone = 'info' }) {
 
 function InfoPill({ text }) {
   return <span className="info-pill">{text}</span>
+}
+
+function InfoTag({ label, tone = 'default' }) {
+  return <span className={`info-tag ${tone}`}>{label}</span>
 }
 
 function StatusPill({ value, tone }) {

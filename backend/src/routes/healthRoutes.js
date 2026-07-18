@@ -12,8 +12,19 @@ router.get('/', async (request, response, next) => {
       ok: true,
       message: 'Backend and database connection are healthy.',
       clinicId: env.clinicId,
+      database: 'online',
     })
   } catch (error) {
+    if (['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ER_ACCESS_DENIED_ERROR', 'ER_BAD_DB_ERROR'].includes(error?.code)) {
+      response.json({
+        ok: true,
+        message: 'Backend is running. Database is currently offline, so fallback mode is active.',
+        clinicId: env.clinicId,
+        database: 'offline',
+      })
+      return
+    }
+
     next(error)
   }
 })

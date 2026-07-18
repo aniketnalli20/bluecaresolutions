@@ -1,6 +1,8 @@
 import crypto from 'node:crypto'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { env } from '../config/env.js'
 import { getPool } from '../db/pool.js'
+import { getFallbackDataDirectory, getFallbackDataFile } from '../utils/fallbackStorage.js'
 import { parseJsonField, toJsonString } from '../utils/json.js'
 import { fallbackEmrData } from '../../../frontend/src/data/fallback.js'
 
@@ -18,8 +20,27 @@ const COLLECTION_TABLES = {
   invoices: 'invoices',
 }
 
+function isDatabaseUnavailableError(error) {
+  return [
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'ENOTFOUND',
+    'ETIMEDOUT',
+    'PROTOCOL_CONNECTION_LOST',
+    'ER_ACCESS_DENIED_ERROR',
+    'ER_BAD_DB_ERROR',
+  ].includes(error?.code)
+}
+
 function ensureArray(value) {
   return Array.isArray(value) ? value : []
+}
+
+function getFallbackWorkspaceUrl(clinicId) {
+  const safeClinicId = String(clinicId || env.clinicId).replace(/[^a-z0-9-_]+/gi, '-').toLowerCase()
+  return getFallbackDataFile(`workspace-${safeClinicId}.json`)
 }
 
 function buildSeedWorkspace(clinicId = env.clinicId) {
@@ -74,6 +95,39 @@ function buildDefaultWorkspace(clinicId = env.clinicId) {
   }
 }
 
+async function readFallbackWorkspace(clinicId = env.clinicId) {
+  try {
+    const rawValue = await readFile(getFallbackWorkspaceUrl(clinicId), 'utf8')
+    const parsed = JSON.parse(rawValue)
+
+    return {
+      ...buildDefaultWorkspace(clinicId),
+      ...parsed,
+      clinic: {
+        ...buildDefaultWorkspace(clinicId).clinic,
+        ...(parsed?.clinic || {}),
+      },
+      systemSettings: {
+        ...buildDefaultWorkspace(clinicId).systemSettings,
+        ...(parsed?.systemSettings || {}),
+      },
+      clinicId,
+    }
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return null
+    }
+
+    throw error
+  }
+}
+
+async function writeFallbackWorkspace(workspace, clinicId = env.clinicId) {
+  await mkdir(getFallbackDataDirectory(), { recursive: true })
+  await writeFile(getFallbackWorkspaceUrl(clinicId), `${JSON.stringify(workspace, null, 2)}\n`, 'utf8')
+  return workspace
+}
+
 async function loadCollection(connection, tableName, clinicId) {
   const [rows] = await connection.execute(
     `SELECT record_id, payload FROM ${tableName} WHERE clinic_id = ? ORDER BY created_at ASC, id ASC`,
@@ -105,10 +159,11 @@ async function replaceCollection(connection, tableName, clinicId, items) {
 }
 
 export async function getWorkspace(clinicId = env.clinicId) {
-  const pool = getPool()
-  const connection = await pool.getConnection()
-
   try {
+    const pool = getPool()
+    const connection = await pool.getConnection()
+
+    try {
     const [clinicRows] = await connection.execute(
       'SELECT name, location, contact FROM clinics WHERE clinic_id = ? LIMIT 1',
       [clinicId],
@@ -150,14 +205,21 @@ export async function getWorkspace(clinicId = env.clinicId) {
     }
 
     return workspace
-  } finally {
-    connection.release()
+    } finally {
+      connection.release()
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailableError(error)) {
+      throw error
+    }
+
+    const fallbackWorkspace = (await readFallbackWorkspace(clinicId)) || buildSeedWorkspace(clinicId)
+    const nextWorkspace = isWorkspaceEmpty(fallbackWorkspace) ? buildSeedWorkspace(clinicId) : fallbackWorkspace
+    return writeFallbackWorkspace(nextWorkspace, clinicId)
   }
 }
 
 export async function saveWorkspace(workspacePayload, clinicId = env.clinicId) {
-  const pool = getPool()
-  const connection = await pool.getConnection()
   const workspace = {
     ...buildDefaultWorkspace(clinicId),
     ...workspacePayload,
@@ -172,9 +234,13 @@ export async function saveWorkspace(workspacePayload, clinicId = env.clinicId) {
   }
 
   try {
-    await connection.beginTransaction()
+    const pool = getPool()
+    const connection = await pool.getConnection()
 
-    await connection.execute(
+    try {
+      await connection.beginTransaction()
+
+      await connection.execute(
       `
         INSERT INTO clinics (clinic_id, name, location, contact)
         VALUES (?, ?, ?, ?)
@@ -187,7 +253,7 @@ export async function saveWorkspace(workspacePayload, clinicId = env.clinicId) {
       [clinicId, workspace.clinic.name, workspace.clinic.location, workspace.clinic.contact],
     )
 
-    await connection.execute(
+      await connection.execute(
       `
         INSERT INTO clinic_settings (clinic_id, settings_json)
         VALUES (?, ?)
@@ -198,7 +264,7 @@ export async function saveWorkspace(workspacePayload, clinicId = env.clinicId) {
       [clinicId, toJsonString(workspace.systemSettings)],
     )
 
-    await connection.execute(
+      await connection.execute(
       `
         INSERT INTO workspace_state (clinic_id, current_user_id)
         VALUES (?, ?)
@@ -209,16 +275,23 @@ export async function saveWorkspace(workspacePayload, clinicId = env.clinicId) {
       [clinicId, workspace.currentUserId || null],
     )
 
-    for (const [key, tableName] of Object.entries(COLLECTION_TABLES)) {
-      await replaceCollection(connection, tableName, clinicId, ensureArray(workspace[key]))
+      for (const [key, tableName] of Object.entries(COLLECTION_TABLES)) {
+        await replaceCollection(connection, tableName, clinicId, ensureArray(workspace[key]))
+      }
+
+      await connection.commit()
+      return getWorkspace(clinicId)
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailableError(error)) {
+      throw error
     }
 
-    await connection.commit()
-    return getWorkspace(clinicId)
-  } catch (error) {
-    await connection.rollback()
-    throw error
-  } finally {
-    connection.release()
+    return writeFallbackWorkspace(workspace, clinicId)
   }
 }

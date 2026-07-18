@@ -18,6 +18,10 @@ function isAllowedCorsOrigin(origin) {
     return true
   }
 
+  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
+    return true
+  }
+
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
 }
 

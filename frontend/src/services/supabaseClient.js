@@ -111,5 +111,9 @@ export async function getClinicAuthUsers() {
       networkFailed: 'Unable to reach the clinic backend to load users. Start the backend server or update the API URL.',
     },
   )
-  return payload.users || []
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Clinic user directory returned an invalid response.')
+  }
+
+  return Array.isArray(payload.users) ? payload.users : []
 }

@@ -40,10 +40,16 @@ bluecaresolutions/
 ## Repeat Vercel Redeploys
 
 - Root deployment config is defined in [vercel.json](file:///c:/xampp/htdocs/bluecaresolutions/vercel.json).
-- Vercel installs from `frontend`, builds with `npm run build`, and serves `frontend/dist`.
+- Vercel installs both `frontend` and `backend`, builds with `npm run build` from `frontend`, and serves `frontend/dist`.
+- Vercel routes `/api/*` requests to [api/index.js](file:///c:/xampp/htdocs/bluecaresolutions/api/index.js), which serves the Express backend from the same deployed host.
 - Any future UI or data changes must be redeployed to appear on [https://bluecaresolutions.vercel.app/](https://bluecaresolutions.vercel.app/).
 - If Vercel does not pick up a new deployment automatically, trigger a manual redeploy from the Vercel project dashboard.
 - SPA rewrites are already configured, so direct paths still resolve to the app entry correctly.
+
+## Vercel Environment
+
+- Leave `VITE_API_BASE_URL` empty on Vercel to use the same deployed host for `/api` requests.
+- Set backend environment values for `CLINIC_ID`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and optionally `CORS_ORIGIN`.
 
 ## Data Layer
 
