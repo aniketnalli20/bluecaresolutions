@@ -1,119 +1,106 @@
-import { createClient } from '@supabase/supabase-js'
+const SESSION_STORAGE_KEY = 'bluecare-clinic-auth-session'
+const AUTH_EVENT_NAME = 'bluecare-clinic-auth-change'
+const apiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '')
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+export const hasSupabaseConfig = Boolean(apiBaseUrl)
+export const CLINIC_WORKSPACE_ID = import.meta.env.VITE_CLINIC_ID || 'sv-kini-ayurvedic-clinic'
+export const supabase = null
 
-export const hasSupabaseConfig = Boolean(supabaseUrl && supabasePublishableKey)
-export const CLINIC_WORKSPACE_ID = 'sv-kini-ayurvedic-clinic'
+function readSession() {
+  try {
+    const rawValue = localStorage.getItem(SESSION_STORAGE_KEY)
+    return rawValue ? JSON.parse(rawValue) : null
+  } catch {
+    return null
+  }
+}
 
-export const supabase = hasSupabaseConfig
-  ? createClient(supabaseUrl, supabasePublishableKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : null
-
-function ensureSupabaseClient() {
-  if (!supabase) {
-    throw new Error('Supabase authentication is not configured.')
+function writeSession(session) {
+  if (!session) {
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+  } else {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
   }
 
-  return supabase
+  window.dispatchEvent(new CustomEvent(AUTH_EVENT_NAME, { detail: session }))
+}
+
+async function parseJson(response) {
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Authentication request failed.')
+  }
+
+  return payload
 }
 
 export async function getSupabaseSession() {
-  const client = ensureSupabaseClient()
-  const {
-    data: { session },
-    error,
-  } = await client.auth.getSession()
-
-  if (error) {
-    throw error
-  }
-
-  return session
+  return readSession()
 }
 
 export async function getSupabaseSessionUser() {
-  const session = await getSupabaseSession().catch(() => null)
+  const session = readSession()
   return session?.user ?? null
 }
 
 export function onSupabaseAuthStateChange(callback) {
-  const client = ensureSupabaseClient()
-  return client.auth.onAuthStateChange((_event, session) => {
-    callback(session)
-  })
+  const handler = (event) => callback(event.detail ?? readSession())
+  window.addEventListener(AUTH_EVENT_NAME, handler)
+
+  return {
+    data: {
+      subscription: {
+        unsubscribe() {
+          window.removeEventListener(AUTH_EVENT_NAME, handler)
+        },
+      },
+    },
+  }
 }
 
 export async function signInWithClinicPassword(email, password) {
-  const client = ensureSupabaseClient()
-  const { data, error } = await client.auth.signInWithPassword({
-    email,
-    password,
+  const response = await fetch(`${apiBaseUrl}/api/auth/login?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
   })
+  const payload = await parseJson(response)
+  writeSession(payload.session || null)
 
-  if (error) {
-    throw error
-  }
-
-  return data
+  return payload
 }
 
 export async function signUpClinicUser({ email, password, fullName }) {
-  const client = ensureSupabaseClient()
-  const { data, error } = await client.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: window.location.origin,
-      data: {
-        full_name: fullName,
-      },
+  const response = await fetch(`${apiBaseUrl}/api/auth/register?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ email, password, fullName }),
   })
+  const payload = await parseJson(response)
+  writeSession(payload.session || null)
 
-  if (error) {
-    throw error
-  }
-
-  return data
+  return payload
 }
 
-export async function sendClinicPasswordReset(email) {
-  const client = ensureSupabaseClient()
-  const { data, error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return data
+export async function sendClinicPasswordReset() {
+  throw new Error('Password reset is not enabled in the current clinic backend.')
 }
 
-export async function updateClinicUserPassword(password) {
-  const client = ensureSupabaseClient()
-  const { data, error } = await client.auth.updateUser({
-    password,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return data
+export async function updateClinicUserPassword() {
+  throw new Error('Password update is not enabled in the current clinic backend.')
 }
 
 export async function signOutClinicUser() {
-  const client = ensureSupabaseClient()
-  const { error } = await client.auth.signOut()
+  writeSession(null)
+}
 
-  if (error) {
-    throw error
-  }
+export async function getClinicAuthUsers() {
+  const response = await fetch(`${apiBaseUrl}/api/auth/users?clinicId=${encodeURIComponent(CLINIC_WORKSPACE_ID)}`)
+  const payload = await parseJson(response)
+  return payload.users || []
 }

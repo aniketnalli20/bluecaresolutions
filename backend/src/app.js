@@ -2,6 +2,7 @@ import cors from 'cors'
 import express from 'express'
 import { env } from './config/env.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import authRoutes from './routes/authRoutes.js'
 import healthRoutes from './routes/healthRoutes.js'
 import workspaceRoutes from './routes/workspaceRoutes.js'
 
@@ -24,6 +25,7 @@ app.get('/', (request, response) => {
 })
 
 app.use('/api/health', healthRoutes)
+app.use('/api/auth', authRoutes)
 app.use('/api/workspace', workspaceRoutes)
 
 app.use(notFoundHandler)
