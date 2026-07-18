@@ -3357,6 +3357,11 @@ function App() {
   }
 
   function renderAuthExperience() {
+    const normalizedAuthEmail = normalizeEmail(authMode === 'reset' ? authForm.resetEmail : authForm.email)
+    const selectedAccessProfile =
+      seededAccessProfiles.find((profile) => normalizeEmail(profile.email) === normalizedAuthEmail) || seededAccessProfiles[0]
+    const authStatusLabel = authError ? 'Validation issue' : authNotice ? 'Authentication status' : 'Ready for sign in'
+    const authStatusMessage = authError || authNotice || 'Use the clinic email already assigned in Clinic Admin to continue.'
     const heading =
       authMode === 'sign-up'
         ? 'Create clinic account'
@@ -3377,27 +3382,84 @@ function App() {
     return (
       <div className="auth-shell">
         <section className="auth-hero">
-          <p className="eyebrow">Authentication</p>
-          <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
-          <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
-          <div className="auth-note">
-            <strong>Clinic access uses Supabase Auth.</strong>
-            <small>User permissions still come from Clinic Admin module access rules.</small>
+          <div className="auth-hero-copy">
+            <p className="eyebrow">Clinic branding</p>
+            <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
+            <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
+          </div>
+          <div className="auth-welcome-card">
+            <p className="eyebrow">Welcome message</p>
+            <h3>Welcome back to the clinic workspace</h3>
+            <small>Sign in securely, create a new clinic account, or recover access using the same staff email stored in Clinic Admin.</small>
+          </div>
+          <div className="auth-seed-panel">
+            <div className="auth-seed-head">
+              <div>
+                <p className="eyebrow">Demo staff profiles</p>
+                <h3>Prepared staff logins</h3>
+              </div>
+              <small>Use any profile below to auto-fill the correct clinic email for sign in or account creation.</small>
+            </div>
+            <div className="auth-profile-grid">
+              {seededAccessProfiles.map((profile) => {
+                const isActive = normalizeEmail(profile.email) === normalizedAuthEmail
+
+                return (
+                  <div key={profile.email} className={`auth-profile-card ${isActive ? 'active' : ''}`}>
+                    <div className="auth-profile-meta">
+                      <strong>{profile.fullName}</strong>
+                      <small>{profile.role}</small>
+                      <small>{profile.email}</small>
+                    </div>
+                    <small>{profile.note}</small>
+                    <div className="auth-profile-actions">
+                      <button type="button" className="ghost-button" onClick={() => handlePrepareSeededAccess(profile, 'sign-in')}>
+                        Sign In
+                      </button>
+                      <button type="button" className="primary-button" onClick={() => handlePrepareSeededAccess(profile, 'sign-up')}>
+                        Create Access
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </section>
         <section className="panel auth-card">
           <div className="section-intro">
-            <p className="eyebrow">Secure Access</p>
+            <p className="eyebrow">Secure sign in form</p>
             <h3>{heading}</h3>
             <p>{description}</p>
           </div>
-          {authError ? <div className="auth-banner error">{authError}</div> : null}
-          {authNotice ? <div className="auth-banner success">{authNotice}</div> : null}
-          <div className="auth-note">
-            <strong>First admin login</strong>
+          <div className="auth-mode-switch" role="tablist" aria-label="Authentication modes">
+            <button
+              type="button"
+              className={`chip-button ${authMode === 'sign-in' ? 'active-chip' : ''}`}
+              onClick={() => setAuthMode('sign-in')}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              className={`chip-button ${authMode === 'sign-up' ? 'active-chip' : ''}`}
+              onClick={() => setAuthMode('sign-up')}
+            >
+              Create Account
+            </button>
+            <button
+              type="button"
+              className={`chip-button ${authMode === 'reset' ? 'active-chip' : ''}`}
+              onClick={() => setAuthMode('reset')}
+            >
+              Reset Password
+            </button>
+          </div>
+          <div className="auth-note auth-note-accent">
+            <strong>First administrator setup</strong>
             <small>Use `admin@svkini.clinic` to create the first full-access account, then sign in with the same email after confirmation if your project requires email verification.</small>
           </div>
-          <div className="auth-actions">
+          <div className="auth-actions auth-actions-compact">
             <button
               type="button"
               className="primary-button"
@@ -3413,35 +3475,41 @@ function App() {
               Sign In as Admin
             </button>
           </div>
-          <div className="auth-note">
-            <strong>Seeded access profiles</strong>
-            <small>Use one of the prepared clinic emails below, especially the administrator profile for the first setup.</small>
+          <div className={`auth-banner ${authError ? 'error' : 'success'}`}>
+            <strong>{authStatusLabel}</strong>
+            <small>{authStatusMessage}</small>
           </div>
-          <div className="auth-profile-grid">
-            {seededAccessProfiles.map((profile) => (
-              <button key={profile.email} type="button" className="auth-profile-card" onClick={() => handlePrepareSeededAccess(profile, 'sign-up')}>
-                <strong>{profile.fullName}</strong>
-                <small>{profile.role}</small>
-                <small>{profile.email}</small>
-              </button>
-            ))}
+          <div className="auth-selected-profile">
+            <span className="status-pill primary">{selectedAccessProfile.role}</span>
+            <div>
+              <strong>{selectedAccessProfile.fullName}</strong>
+              <small>{selectedAccessProfile.email}</small>
+            </div>
           </div>
           {authMode === 'sign-in' ? (
             <form className="auth-form" onSubmit={handleAuthSignIn}>
-              <input
-                type="email"
-                value={authForm.email}
-                onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
-                placeholder="Clinic email"
-                required
-              />
-              <input
-                type="password"
-                value={authForm.password}
-                onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
-                placeholder="Password"
-                required
-              />
+              <label className="auth-field">
+                <span>Email address</span>
+                <input
+                  type="email"
+                  value={authForm.email}
+                  onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                  placeholder="Clinic email"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+              <label className="auth-field">
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={authForm.password}
+                  onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
               <button type="submit" className="primary-button" disabled={authBusy}>
                 {authBusy ? 'Signing In...' : 'Sign In'}
               </button>
@@ -3449,33 +3517,49 @@ function App() {
           ) : null}
           {authMode === 'sign-up' ? (
             <form className="auth-form" onSubmit={handleAuthSignUp}>
-              <input
-                value={authForm.fullName}
-                onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })}
-                placeholder="Full name"
-                required
-              />
-              <input
-                type="email"
-                value={authForm.email}
-                onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
-                placeholder="Clinic email"
-                required
-              />
-              <input
-                type="password"
-                value={authForm.password}
-                onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
-                placeholder="Password"
-                required
-              />
-              <input
-                type="password"
-                value={authForm.confirmPassword}
-                onChange={(event) => setAuthForm({ ...authForm, confirmPassword: event.target.value })}
-                placeholder="Confirm password"
-                required
-              />
+              <label className="auth-field">
+                <span>Full name</span>
+                <input
+                  value={authForm.fullName}
+                  onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })}
+                  placeholder="Full name"
+                  autoComplete="name"
+                  required
+                />
+              </label>
+              <label className="auth-field">
+                <span>Email address</span>
+                <input
+                  type="email"
+                  value={authForm.email}
+                  onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                  placeholder="Clinic email"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+              <label className="auth-field">
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={authForm.password}
+                  onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                  placeholder="Password"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+              <label className="auth-field">
+                <span>Confirm password</span>
+                <input
+                  type="password"
+                  value={authForm.confirmPassword}
+                  onChange={(event) => setAuthForm({ ...authForm, confirmPassword: event.target.value })}
+                  placeholder="Confirm password"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
               <button type="submit" className="primary-button" disabled={authBusy}>
                 {authBusy ? 'Creating Account...' : 'Create Account'}
               </button>
@@ -3483,13 +3567,17 @@ function App() {
           ) : null}
           {authMode === 'reset' ? (
             <form className="auth-form" onSubmit={handleAuthPasswordReset}>
-              <input
-                type="email"
-                value={authForm.resetEmail}
-                onChange={(event) => setAuthForm({ ...authForm, resetEmail: event.target.value })}
-                placeholder="Clinic email"
-                required
-              />
+              <label className="auth-field">
+                <span>Email address</span>
+                <input
+                  type="email"
+                  value={authForm.resetEmail}
+                  onChange={(event) => setAuthForm({ ...authForm, resetEmail: event.target.value })}
+                  placeholder="Clinic email"
+                  autoComplete="email"
+                  required
+                />
+              </label>
               <button type="submit" className="primary-button" disabled={authBusy}>
                 {authBusy ? 'Sending Link...' : 'Send Reset Link'}
               </button>
@@ -3497,20 +3585,28 @@ function App() {
           ) : null}
           {authMode === 'update-password' ? (
             <form className="auth-form" onSubmit={handleAuthPasswordUpdate}>
-              <input
-                type="password"
-                value={authForm.nextPassword}
-                onChange={(event) => setAuthForm({ ...authForm, nextPassword: event.target.value })}
-                placeholder="New password"
-                required
-              />
-              <input
-                type="password"
-                value={authForm.confirmNextPassword}
-                onChange={(event) => setAuthForm({ ...authForm, confirmNextPassword: event.target.value })}
-                placeholder="Confirm new password"
-                required
-              />
+              <label className="auth-field">
+                <span>New password</span>
+                <input
+                  type="password"
+                  value={authForm.nextPassword}
+                  onChange={(event) => setAuthForm({ ...authForm, nextPassword: event.target.value })}
+                  placeholder="New password"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+              <label className="auth-field">
+                <span>Confirm new password</span>
+                <input
+                  type="password"
+                  value={authForm.confirmNextPassword}
+                  onChange={(event) => setAuthForm({ ...authForm, confirmNextPassword: event.target.value })}
+                  placeholder="Confirm new password"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
               <button type="submit" className="primary-button" disabled={authBusy}>
                 {authBusy ? 'Updating Password...' : 'Update Password'}
               </button>
