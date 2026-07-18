@@ -1,13 +1,16 @@
 import crypto from 'node:crypto'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { env } from '../config/env.js'
 import { getPool } from '../db/pool.js'
 import { parseJsonField, toJsonString } from '../utils/json.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { getWorkspace } from './workspaceService.js'
+import { fallbackEmrData } from '../../../frontend/src/data/fallback.js'
 
 const DEFAULT_ROLE = 'Front Desk Coordinator'
 const DEFAULT_STATUS = 'Active'
 const DEFAULT_ALLOWED_VIEWS = ['Dashboard', 'Patients', 'VisitPlanner', 'Billing', 'Notifications']
+const FALLBACK_AUTH_STORE_URL = new URL('../../data/auth-fallback-users.json', import.meta.url)
 const DEMO_USERS = [
   {
     fullName: 'Clinic Administrator',
@@ -45,6 +48,142 @@ const DEMO_USERS = [
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase()
+}
+
+function isDatabaseUnavailableError(error) {
+  return ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ER_ACCESS_DENIED_ERROR', 'ER_BAD_DB_ERROR'].includes(error?.code)
+}
+
+function buildFallbackUserId(email) {
+  return `fallback-auth-${normalizeEmail(email).replace(/[^a-z0-9]+/g, '-')}`
+}
+
+function getFallbackClinicUserByEmail(email) {
+  const normalizedEmail = normalizeEmail(email)
+  return (fallbackEmrData?.users || []).find((user) => normalizeEmail(user.email) === normalizedEmail) || null
+}
+
+async function readFallbackAuthUsers() {
+  try {
+    const rawValue = await readFile(FALLBACK_AUTH_STORE_URL, 'utf8')
+    const parsed = JSON.parse(rawValue)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return []
+    }
+
+    throw error
+  }
+}
+
+async function writeFallbackAuthUsers(users) {
+  await mkdir(new URL('../../data/', import.meta.url), { recursive: true })
+  await writeFile(FALLBACK_AUTH_STORE_URL, `${JSON.stringify(users, null, 2)}\n`, 'utf8')
+}
+
+function buildFallbackSession(profile, clinicUser = null) {
+  return {
+    session: {
+      user: {
+        id: profile.user_id,
+        email: profile.email,
+        full_name: profile.full_name,
+        role: profile.role,
+        status: profile.status,
+        clinic_user_id: clinicUser?.id || profile.clinic_user_record_id || null,
+      },
+    },
+    user: {
+      id: profile.user_id,
+      email: profile.email,
+      fullName: profile.full_name,
+      role: profile.role,
+      status: profile.status,
+    },
+  }
+}
+
+function buildDemoFallbackProfiles() {
+  return DEMO_USERS.map((profile) => {
+    const clinicUser = getFallbackClinicUserByEmail(profile.email)
+
+    return {
+      user_id: buildFallbackUserId(profile.email),
+      clinic_user_record_id: clinicUser?.id || null,
+      full_name: profile.fullName,
+      email: normalizeEmail(profile.email),
+      password: profile.password,
+      role: profile.role,
+      status: profile.status,
+      created_at: new Date(0).toISOString(),
+    }
+  })
+}
+
+async function loginClinicUserFallback({ email, password }) {
+  const normalizedEmail = normalizeEmail(email)
+  const fallbackProfiles = [...buildDemoFallbackProfiles(), ...(await readFallbackAuthUsers())]
+  const profile = fallbackProfiles.find((item) => normalizeEmail(item.email) === normalizedEmail)
+  const passwordMatches =
+    profile &&
+    (profile.password ? profile.password === password : verifyPassword(password, profile.password_hash))
+
+  if (!profile || !passwordMatches) {
+    throw new Error('Invalid email or password.')
+  }
+
+  return buildFallbackSession(profile, getFallbackClinicUserByEmail(normalizedEmail))
+}
+
+async function registerClinicUserFallback({ fullName, email, password, clinicId = env.clinicId }) {
+  const normalizedEmail = normalizeEmail(email)
+  if (!fullName?.trim()) {
+    throw new Error('Full name is required.')
+  }
+  if (!normalizedEmail) {
+    throw new Error('Valid email is required.')
+  }
+  if (!password || password.length < 8) {
+    throw new Error('Password must be at least 8 characters long.')
+  }
+
+  const existingUsers = [...buildDemoFallbackProfiles(), ...(await readFallbackAuthUsers())]
+  if (existingUsers.some((item) => normalizeEmail(item.email) === normalizedEmail)) {
+    throw new Error('An account already exists for this email.')
+  }
+
+  const createdAt = new Date().toISOString()
+  const authUser = {
+    user_id: crypto.randomUUID(),
+    clinic_id: clinicId,
+    clinic_user_record_id: getFallbackClinicUserByEmail(normalizedEmail)?.id || null,
+    full_name: fullName.trim(),
+    email: normalizedEmail,
+    password_hash: hashPassword(password),
+    role: DEFAULT_ROLE,
+    status: DEFAULT_STATUS,
+    created_at: createdAt,
+  }
+
+  const storedUsers = await readFallbackAuthUsers()
+  await writeFallbackAuthUsers([...storedUsers, authUser])
+
+  return buildFallbackSession(authUser, getFallbackClinicUserByEmail(normalizedEmail))
+}
+
+async function listClinicUsersFallback() {
+  const fallbackProfiles = [...buildDemoFallbackProfiles(), ...(await readFallbackAuthUsers())]
+
+  return fallbackProfiles.map((profile) => ({
+    id: profile.user_id,
+    clinic_user_id: profile.clinic_user_record_id || getFallbackClinicUserByEmail(profile.email)?.id || null,
+    full_name: profile.full_name,
+    email: profile.email,
+    role: profile.role,
+    status: profile.status,
+    created_at: profile.created_at || new Date().toISOString(),
+  }))
 }
 
 function buildSession(authUser, clinicUser = null) {
@@ -177,7 +316,7 @@ async function ensureDemoAuthUsers(clinicId = env.clinicId) {
   }
 }
 
-export async function loginClinicUser({ email, password, clinicId = env.clinicId }) {
+async function loginClinicUserWithDatabase({ email, password, clinicId = env.clinicId }) {
   await ensureDemoAuthUsers(clinicId)
 
   const pool = getPool()
@@ -215,7 +354,7 @@ export async function loginClinicUser({ email, password, clinicId = env.clinicId
   }
 }
 
-export async function registerClinicUser({ fullName, email, password, clinicId = env.clinicId }) {
+async function registerClinicUserWithDatabase({ fullName, email, password, clinicId = env.clinicId }) {
   await ensureDemoAuthUsers(clinicId)
 
   const normalizedEmail = normalizeEmail(email)
@@ -296,7 +435,7 @@ export async function registerClinicUser({ fullName, email, password, clinicId =
   }
 }
 
-export async function listClinicUsers(clinicId = env.clinicId) {
+async function listClinicUsersWithDatabase(clinicId = env.clinicId) {
   await ensureDemoAuthUsers(clinicId)
 
   const pool = getPool()
@@ -324,5 +463,41 @@ export async function listClinicUsers(clinicId = env.clinicId) {
     }))
   } finally {
     connection.release()
+  }
+}
+
+export async function loginClinicUser(input) {
+  try {
+    return await loginClinicUserWithDatabase(input)
+  } catch (error) {
+    if (!isDatabaseUnavailableError(error)) {
+      throw error
+    }
+
+    return loginClinicUserFallback(input)
+  }
+}
+
+export async function registerClinicUser(input) {
+  try {
+    return await registerClinicUserWithDatabase(input)
+  } catch (error) {
+    if (!isDatabaseUnavailableError(error)) {
+      throw error
+    }
+
+    return registerClinicUserFallback(input)
+  }
+}
+
+export async function listClinicUsers(clinicId = env.clinicId) {
+  try {
+    return await listClinicUsersWithDatabase(clinicId)
+  } catch (error) {
+    if (!isDatabaseUnavailableError(error)) {
+      throw error
+    }
+
+    return listClinicUsersFallback(clinicId)
   }
 }
