@@ -1342,6 +1342,25 @@ function App() {
     })
   }, [])
 
+  const handleAdmissionPatientChange = useCallback(
+    (patientId) => {
+      const patient = patientsById[patientId]
+
+      setAdmissionForm((current) => ({
+        ...current,
+        patient_id: patientId,
+        patient_name: patient?.name || '',
+        age: patient?.age || '',
+        gender: patient?.gender || current.gender,
+        occupation: patient?.occupation || '',
+        mobile_no: patient?.contact_details || '',
+        email_id: patient?.email || '',
+        record_date: current.record_date || new Date().toISOString().slice(0, 10),
+      }))
+    },
+    [patientsById],
+  )
+
   const handleSearchSelection = useCallback(
     (entry) => {
       const opened = openView(entry.viewKey)
@@ -1927,7 +1946,25 @@ function App() {
       const admission = {
         id: createRecordId('ipd'),
         patient_id: patient.id,
-        patient_name: patient.name,
+        patient_name: admissionForm.patient_name || patient.name,
+        record_date: admissionForm.record_date || new Date().toISOString().slice(0, 10),
+        place_of_birth: admissionForm.place_of_birth,
+        age: admissionForm.age || patient.age || '',
+        gender: admissionForm.gender || patient.gender || '',
+        date_of_birth: admissionForm.date_of_birth,
+        occupation: admissionForm.occupation || patient.occupation || '',
+        mobile_no: admissionForm.mobile_no || patient.contact_details || '',
+        email_id: admissionForm.email_id || patient.email || '',
+        pulse_nadi: admissionForm.pulse_nadi,
+        tongue_jivha: admissionForm.tongue_jivha,
+        chief_complaints: admissionForm.chief_complaints,
+        complaint_flags: admissionForm.complaint_flags,
+        drug_allergy: admissionForm.drug_allergy,
+        drug_reaction: admissionForm.drug_reaction,
+        thyroid_disorder: admissionForm.thyroid_disorder,
+        menstrual_history: admissionForm.menstrual_history,
+        obstetric_history: admissionForm.obstetric_history,
+        weight: admissionForm.weight,
         doctor_name: admissionForm.doctor_name,
         admission_date: admissionForm.admission_date || new Date().toISOString().slice(0, 10),
         bed_allocation: admissionForm.bed_allocation,
@@ -2581,7 +2618,7 @@ function App() {
               ))}
             </div>
           </Panel>
-          <Panel title="IPD Detail" subtitle="Focused indoor care view for treatment chart, schedule, medicines, diet, progress, discharge, and final invoice.">
+          <Panel title="IPD Detail" subtitle="Structured indoor care record with patient profile, complaint checklist, treatment chart, progress, and discharge overview.">
             {selectedAdmission ? (
               <div className="detail-stack">
                 <div className="pill-row">
@@ -2589,13 +2626,57 @@ function App() {
                   <InfoPill text={selectedAdmission.bed_allocation} />
                   <InfoPill text={`Invoice ${formatCurrency(selectedAdmission.final_invoice)}`} />
                 </div>
-                <KeyValue label="Patient" value={selectedAdmission.patient_name} />
-                <KeyValue label="Doctor" value={selectedAdmission.doctor_name} />
-                <KeyValue label="Admission Date" value={formatDate(selectedAdmission.admission_date)} />
-                <KeyValue label="Diagnosis" value={selectedAdmission.diagnosis} />
-                <KeyValue label="Diet Plan" value={selectedAdmission.diet_plan} />
-                <KeyValue label="Daily Progress" value={selectedAdmission.daily_progress} />
-                <KeyValue label="Discharge Summary" value={selectedAdmission.discharge_summary} />
+                <div className="ipd-record-sheet">
+                  <div className="ipd-sheet-markers">
+                    <span>!! Om !!</span>
+                    <span>!! Shri !!</span>
+                    <span>!!!!</span>
+                  </div>
+                  <div className="ipd-sheet-header">
+                    <h3>Dr. S. V. Kini Ayurvedic Clinic & Panchakarma Centre</h3>
+                    <p>Patient Record</p>
+                  </div>
+                  <div className="ipd-record-grid">
+                    <KeyValue label="Patient Name" value={selectedAdmission.patient_name} />
+                    <KeyValue label="Date" value={formatDate(selectedAdmission.record_date || selectedAdmission.admission_date)} />
+                    <KeyValue label="Place of Birth" value={selectedAdmission.place_of_birth} />
+                    <KeyValue label="Age" value={selectedAdmission.age} />
+                    <KeyValue label="Gender" value={selectedAdmission.gender} />
+                    <KeyValue label="Date of Birth" value={formatDate(selectedAdmission.date_of_birth)} />
+                    <KeyValue label="Occupation" value={selectedAdmission.occupation} />
+                    <KeyValue label="Mobile No." value={selectedAdmission.mobile_no} />
+                    <KeyValue label="Email ID" value={selectedAdmission.email_id} />
+                    <KeyValue label="Pulse (Nadi)" value={selectedAdmission.pulse_nadi} />
+                    <KeyValue label="Tongue (Jivha)" value={selectedAdmission.tongue_jivha} />
+                    <KeyValue label="Weight (Wt.)" value={selectedAdmission.weight ? `${selectedAdmission.weight} kg` : ''} />
+                  </div>
+                  <div className="ipd-note-block">
+                    <strong>!! Shri !!</strong>
+                    <p>{selectedAdmission.chief_complaints || 'No chief complaint recorded.'}</p>
+                  </div>
+                  <div className="ipd-complaint-grid">
+                    {complaintChecklist.map((item) => (
+                      <InfoPill
+                        key={`${selectedAdmission.id}-${item}`}
+                        text={item}
+                        tone={selectedAdmission.complaint_flags?.includes(item) ? 'primary' : 'neutral'}
+                      />
+                    ))}
+                  </div>
+                  <div className="ipd-record-grid">
+                    <KeyValue label="Drug Allergy" value={selectedAdmission.drug_allergy} />
+                    <KeyValue label="Drug Reaction" value={selectedAdmission.drug_reaction} />
+                    <KeyValue label="Thyroid Disorder" value={selectedAdmission.thyroid_disorder} />
+                    <KeyValue label="M/H - Menstrual History" value={selectedAdmission.menstrual_history} />
+                    <KeyValue label="O/H - Obstetric History" value={selectedAdmission.obstetric_history} />
+                    <KeyValue label="Doctor" value={selectedAdmission.doctor_name} />
+                    <KeyValue label="Admission Date" value={formatDate(selectedAdmission.admission_date)} />
+                    <KeyValue label="Diagnosis" value={selectedAdmission.diagnosis} />
+                    <KeyValue label="Diet Plan" value={selectedAdmission.diet_plan} />
+                    <KeyValue label="Daily Progress" value={selectedAdmission.daily_progress} />
+                    <KeyValue label="Discharge Summary" value={selectedAdmission.discharge_summary} />
+                  </div>
+                </div>
                 <div className="timeline">
                   {selectedAdmission.daily_treatment_chart.map((entry) => (
                     <div key={`${selectedAdmission.id}-${entry.day}`} className="timeline-item">
@@ -2613,18 +2694,70 @@ function App() {
             )}
           </Panel>
         </div>
-        <Panel title="Admit IPD Patient" subtitle="Create a new indoor management record for Panchakarma and supervised care.">
-            <form className="form-grid" onSubmit={handleAdmissionSubmit}>
-              <select value={admissionForm.patient_id} onChange={(event) => setAdmissionForm({ ...admissionForm, patient_id: event.target.value })} required>
+        <Panel title="Admit IPD Patient" subtitle="Create a structured Ayurvedic patient record and indoor treatment workflow connected to the clinic backend.">
+            <form className="form-grid ipd-form-grid" onSubmit={handleAdmissionSubmit}>
+              <div className="form-banner full-span">
+                <div className="ipd-sheet-markers">
+                  <span>!! Om !!</span>
+                  <span>!! Shri !!</span>
+                  <span>!!!!</span>
+                </div>
+                <strong>Dr. S. V. Kini Ayurvedic Clinic & Panchakarma Centre</strong>
+                <small>Patient Record</small>
+              </div>
+              <select value={admissionForm.patient_id} onChange={(event) => handleAdmissionPatientChange(event.target.value)} required>
                 <option value="">Patient</option>
                 {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.name}</option>)}
               </select>
+              <input value={admissionForm.patient_name} onChange={(event) => setAdmissionForm({ ...admissionForm, patient_name: event.target.value })} placeholder="Patient Name" required />
+              <input type="date" value={admissionForm.record_date} onChange={(event) => setAdmissionForm({ ...admissionForm, record_date: event.target.value })} required />
+              <input value={admissionForm.place_of_birth} onChange={(event) => setAdmissionForm({ ...admissionForm, place_of_birth: event.target.value })} placeholder="Place of Birth" />
+              <input value={admissionForm.age} onChange={(event) => setAdmissionForm({ ...admissionForm, age: event.target.value })} placeholder="Age" />
+              <select value={admissionForm.gender} onChange={(event) => setAdmissionForm({ ...admissionForm, gender: event.target.value })}>
+                {genders.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <input type="date" value={admissionForm.date_of_birth} onChange={(event) => setAdmissionForm({ ...admissionForm, date_of_birth: event.target.value })} />
+              <input value={admissionForm.occupation} onChange={(event) => setAdmissionForm({ ...admissionForm, occupation: event.target.value })} placeholder="Occupation" />
+              <input value={admissionForm.mobile_no} onChange={(event) => setAdmissionForm({ ...admissionForm, mobile_no: event.target.value })} placeholder="Mobile No." />
+              <input type="email" value={admissionForm.email_id} onChange={(event) => setAdmissionForm({ ...admissionForm, email_id: event.target.value })} placeholder="Email ID" />
+              <input value={admissionForm.pulse_nadi} onChange={(event) => setAdmissionForm({ ...admissionForm, pulse_nadi: event.target.value })} placeholder="Pulse (Nadi)" />
+              <input value={admissionForm.tongue_jivha} onChange={(event) => setAdmissionForm({ ...admissionForm, tongue_jivha: event.target.value })} placeholder="Tongue (Jivha)" />
               <select value={admissionForm.doctor_name} onChange={(event) => setAdmissionForm({ ...admissionForm, doctor_name: event.target.value })} required>
                 {doctorDirectory.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
               </select>
               <input type="date" value={admissionForm.admission_date} onChange={(event) => setAdmissionForm({ ...admissionForm, admission_date: event.target.value })} required />
               <input value={admissionForm.bed_allocation} onChange={(event) => setAdmissionForm({ ...admissionForm, bed_allocation: event.target.value })} placeholder="Bed allocation" required />
+              <input value={admissionForm.weight} onChange={(event) => setAdmissionForm({ ...admissionForm, weight: event.target.value })} placeholder="Weight (Wt.)" />
+              <textarea className="full-span" value={admissionForm.chief_complaints} onChange={(event) => setAdmissionForm({ ...admissionForm, chief_complaints: event.target.value })} placeholder="Chief Complaint(s)" />
+              <div className="full-span complaint-checklist">
+                {complaintChecklist.map((item) => {
+                  const checked = admissionForm.complaint_flags.includes(item)
+
+                  return (
+                    <label key={item} className={`complaint-chip ${checked ? 'active' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setAdmissionForm((current) => ({
+                            ...current,
+                            complaint_flags: checked
+                              ? current.complaint_flags.filter((value) => value !== item)
+                              : [...current.complaint_flags, item],
+                          }))
+                        }
+                      />
+                      <span>{item}</span>
+                    </label>
+                  )
+                })}
+              </div>
               <textarea value={admissionForm.diagnosis} onChange={(event) => setAdmissionForm({ ...admissionForm, diagnosis: event.target.value })} placeholder="Diagnosis" />
+              <textarea value={admissionForm.drug_allergy} onChange={(event) => setAdmissionForm({ ...admissionForm, drug_allergy: event.target.value })} placeholder="Drug Allergy" />
+              <textarea value={admissionForm.drug_reaction} onChange={(event) => setAdmissionForm({ ...admissionForm, drug_reaction: event.target.value })} placeholder="Drug Reaction" />
+              <textarea value={admissionForm.thyroid_disorder} onChange={(event) => setAdmissionForm({ ...admissionForm, thyroid_disorder: event.target.value })} placeholder="Thyroid Disorder" />
+              <textarea value={admissionForm.menstrual_history} onChange={(event) => setAdmissionForm({ ...admissionForm, menstrual_history: event.target.value })} placeholder="M/H - Menstrual History" />
+              <textarea value={admissionForm.obstetric_history} onChange={(event) => setAdmissionForm({ ...admissionForm, obstetric_history: event.target.value })} placeholder="O/H - Obstetric History" />
               <textarea value={admissionForm.treatment_notes} onChange={(event) => setAdmissionForm({ ...admissionForm, treatment_notes: event.target.value })} placeholder="Daily treatment chart entry" />
               <textarea value={admissionForm.panchakarma_schedule} onChange={(event) => setAdmissionForm({ ...admissionForm, panchakarma_schedule: event.target.value })} placeholder="Panchakarma schedule, one line per entry" />
               <textarea value={admissionForm.medicine_administration} onChange={(event) => setAdmissionForm({ ...admissionForm, medicine_administration: event.target.value })} placeholder="Medicine administration, one line per entry" />
