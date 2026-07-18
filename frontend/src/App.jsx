@@ -497,6 +497,7 @@ function App() {
   const [authSession, setAuthSession] = useState(null)
   const [authReady, setAuthReady] = useState(!hasSupabaseConfig)
   const [authMode, setAuthMode] = useState('sign-in')
+  const [authAudience, setAuthAudience] = useState('Clinic User')
   const [authBusy, setAuthBusy] = useState(false)
   const [authNotice, setAuthNotice] = useState('')
   const [authError, setAuthError] = useState('')
@@ -3716,6 +3717,7 @@ function App() {
   }
 
   function renderAuthExperience() {
+    const navLinks = ['Home', 'Profile', 'Wallet', 'KYC', 'Create Campaign', 'Login']
     const authStatusLabel = authError
       ? authError.toLowerCase().includes('unable to reach')
         ? 'Connection issue'
@@ -3734,130 +3736,162 @@ function App() {
         : 'Use your clinic email and password to access the workspace.'
 
     return (
-      <div className="auth-shell auth-shell-bluecare">
-        <section className="auth-hero auth-hero-bluecare">
-          <div className="auth-hero-copy">
-            <p className="eyebrow">Bluecares access</p>
-            <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
-            <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
-          </div>
-          <div className="auth-welcome-card">
-            <p className="eyebrow">Welcome</p>
-            <h3>Bluecares sign in for clinic staff</h3>
-            <small>A focused access screen with only login and register actions, styled to match the Bluecares color system.</small>
-          </div>
-          <div className="auth-note auth-note-accent">
-            <strong>{authDirectoryLoading ? 'Preparing clinic access' : 'Clinic access is ready'}</strong>
-            <small>Sign in to continue or register a new staff account approved for clinic use.</small>
-          </div>
-        </section>
-        <section className="panel auth-card auth-card-bluecare">
-          <div className="section-intro">
-            <p className="eyebrow">Authentication</p>
-            <h3>{heading}</h3>
-            <p>{description}</p>
-          </div>
-          <div className="auth-mode-switch" role="tablist" aria-label="Authentication modes">
-            <button
-              type="button"
-              className={`chip-button ${authMode === 'sign-in' ? 'active-chip' : ''}`}
-              onClick={() => setAuthMode('sign-in')}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              className={`chip-button ${authMode === 'sign-up' ? 'active-chip' : ''}`}
-              onClick={() => setAuthMode('sign-up')}
-            >
-              Register
-            </button>
-          </div>
-          <div className={`auth-banner ${authError ? 'error' : 'success'}`}>
-            <strong>{authStatusLabel}</strong>
-            <small>{authStatusMessage}</small>
-          </div>
-          {authMode === 'sign-in' ? (
-            <form className="auth-form" onSubmit={handleAuthSignIn}>
-              <label className="auth-field">
-                <span>Email address</span>
-                <input
-                  type="email"
-                  value={authForm.email}
-                  onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
-                  placeholder="Clinic email"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-              <label className="auth-field">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={authForm.password}
-                  onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
-                  placeholder="Password"
-                  autoComplete="current-password"
-                  required
-                />
-              </label>
-              <button type="submit" className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Logging In...' : 'Login'}
+      <div className="auth-mock-page">
+        <header className="auth-mock-header">
+          <div className="auth-mock-brand">Bluecares</div>
+          <nav className="auth-mock-nav" aria-label="Primary">
+            {navLinks.map((item) => (
+              <a key={item} href="/" onClick={(event) => event.preventDefault()} className={item === 'Login' ? 'active' : ''}>
+                {item}
+              </a>
+            ))}
+          </nav>
+        </header>
+
+        <main className="auth-mock-main">
+          <section className="auth-mock-card">
+            <div className="auth-mock-card-head">
+              <h2>Access your account</h2>
+              <div className="auth-mock-tabs" role="tablist" aria-label="Authentication modes">
+                <button
+                  type="button"
+                  className={authMode === 'sign-in' ? 'active' : ''}
+                  onClick={() => setAuthMode('sign-in')}
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  className={authMode === 'sign-up' ? 'active' : ''}
+                  onClick={() => setAuthMode('sign-up')}
+                >
+                  Register
+                </button>
+              </div>
+            </div>
+
+            <div className="auth-mock-role-label">Login As</div>
+            <div className="auth-mock-role-toggle">
+              <button
+                type="button"
+                className={authAudience === 'Clinic User' ? 'active' : ''}
+                onClick={() => setAuthAudience('Clinic User')}
+              >
+                Clinic User
               </button>
-            </form>
-          ) : null}
-          {authMode === 'sign-up' ? (
-            <form className="auth-form" onSubmit={handleAuthSignUp}>
-              <label className="auth-field">
-                <span>Full name</span>
-                <input
-                  value={authForm.fullName}
-                  onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })}
-                  placeholder="Full name"
-                  autoComplete="name"
-                  required
-                />
-              </label>
-              <label className="auth-field">
-                <span>Email address</span>
-                <input
-                  type="email"
-                  value={authForm.email}
-                  onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
-                  placeholder="Clinic email"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-              <label className="auth-field">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={authForm.password}
-                  onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
-                  placeholder="Password"
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-              <label className="auth-field">
-                <span>Confirm password</span>
-                <input
-                  type="password"
-                  value={authForm.confirmPassword}
-                  onChange={(event) => setAuthForm({ ...authForm, confirmPassword: event.target.value })}
-                  placeholder="Confirm password"
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-              <button type="submit" className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Registering...' : 'Register'}
+              <button
+                type="button"
+                className={authAudience === 'Contributor' ? 'active' : ''}
+                onClick={() => setAuthAudience('Contributor')}
+              >
+                Contributor
               </button>
-            </form>
-          ) : null}
-          <small>Use approved clinic credentials to continue into the workspace.</small>
-        </section>
+            </div>
+
+            {authError || authNotice ? (
+              <div className={`auth-mock-alert ${authError ? 'error' : 'success'}`}>
+                <strong>{authStatusLabel}</strong>
+                <small>{authStatusMessage}</small>
+              </div>
+            ) : null}
+
+            {authMode === 'sign-in' ? (
+              <form className="auth-mock-form" onSubmit={handleAuthSignIn}>
+                <label className="auth-mock-input">
+                  <span className="auth-mock-input-icon">@</span>
+                  <input
+                    type="email"
+                    value={authForm.email}
+                    onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                    placeholder="Email"
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                <label className="auth-mock-input">
+                  <span className="auth-mock-input-icon">*</span>
+                  <input
+                    type="password"
+                    value={authForm.password}
+                    onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                    placeholder="Password"
+                    autoComplete="current-password"
+                    required
+                  />
+                </label>
+                <div className="auth-mock-meta-row">
+                  <span>{authDirectoryLoading ? 'Checking access...' : 'Clinic account access'}</span>
+                  <button
+                    type="button"
+                    className="auth-mock-link"
+                    onClick={() => setAuthNotice('Password reset is not enabled in the current clinic backend.')}
+                  >
+                    Forgot Password ?
+                  </button>
+                </div>
+                <button type="submit" className="auth-mock-submit" disabled={authBusy}>
+                  {authBusy ? 'Logging In...' : 'Log In'}
+                </button>
+              </form>
+            ) : null}
+
+            {authMode === 'sign-up' ? (
+              <form className="auth-mock-form" onSubmit={handleAuthSignUp}>
+                <label className="auth-mock-input">
+                  <span className="auth-mock-input-icon">A</span>
+                  <input
+                    value={authForm.fullName}
+                    onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })}
+                    placeholder="Full Name"
+                    autoComplete="name"
+                    required
+                  />
+                </label>
+                <label className="auth-mock-input">
+                  <span className="auth-mock-input-icon">@</span>
+                  <input
+                    type="email"
+                    value={authForm.email}
+                    onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
+                    placeholder="Email"
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                <label className="auth-mock-input">
+                  <span className="auth-mock-input-icon">*</span>
+                  <input
+                    type="password"
+                    value={authForm.password}
+                    onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                    placeholder="Password"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+                <label className="auth-mock-input">
+                  <span className="auth-mock-input-icon">*</span>
+                  <input
+                    type="password"
+                    value={authForm.confirmPassword}
+                    onChange={(event) => setAuthForm({ ...authForm, confirmPassword: event.target.value })}
+                    placeholder="Confirm Password"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+                <button type="submit" className="auth-mock-submit" disabled={authBusy}>
+                  {authBusy ? 'Registering...' : 'Register'}
+                </button>
+              </form>
+            ) : null}
+          </section>
+        </main>
+
+        <footer className="auth-mock-footer">
+          <span className="auth-mock-footer-line" />
+          <small>{`© ${new Date().getFullYear()} Bluecares`}</small>
+        </footer>
       </div>
     )
   }
