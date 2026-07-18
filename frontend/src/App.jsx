@@ -656,10 +656,6 @@ function App() {
   }, [authReady, authSession?.user?.id])
 
   useEffect(() => {
-    loadAuthDirectory()
-  }, [loadAuthDirectory])
-
-  useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('bluecare-clinic-theme', theme)
   }, [theme])
@@ -708,6 +704,10 @@ function App() {
       setAuthDirectoryLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    loadAuthDirectory()
+  }, [loadAuthDirectory])
 
   const patients = workspace?.patients ?? emptyList
   const visits = workspace?.visitPlanner ?? emptyList
@@ -3716,17 +3716,16 @@ function App() {
   }
 
   function renderAuthExperience() {
-    const sharedUserCount = authDirectory.length || seededAccessProfiles.length
     const authStatusLabel = authError ? 'Validation issue' : authNotice ? 'Authentication status' : 'Secure access ready'
     const authStatusMessage =
       authError ||
       authNotice ||
-      'Clinic accounts come from the shared backend, so access is available beyond a single browser session.'
+      'Sign in with your clinic account or register a new staff login to continue.'
     const heading = authMode === 'sign-up' ? 'Register clinic access' : 'Login to clinic workspace'
     const description =
       authMode === 'sign-up'
-        ? 'Create a clinic account against the shared backend using the Bluecares access design.'
-        : 'Use your clinic email and password to sign in through the shared clinic backend.'
+        ? 'Create a clean Bluecares-style account for approved clinic staff.'
+        : 'Use your clinic email and password to access the workspace.'
 
     return (
       <div className="auth-shell auth-shell-bluecare">
@@ -3735,20 +3734,15 @@ function App() {
             <p className="eyebrow">Bluecares access</p>
             <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
             <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
-            <div className="auth-brand-strip">
-              <span>Bluecares</span>
-              <span>Login</span>
-              <span>Register</span>
-            </div>
           </div>
           <div className="auth-welcome-card">
             <p className="eyebrow">Welcome</p>
-            <h3>Bluecares login with shared backend access</h3>
-            <small>Only login and register actions are kept here. Accounts come from the MySQL-backed clinic service, not from local-only browser state.</small>
+            <h3>Bluecares sign in for clinic staff</h3>
+            <small>A focused access screen with only login and register actions, styled to match the Bluecares color system.</small>
           </div>
           <div className="auth-note auth-note-accent">
-            <strong>{authDirectoryLoading ? 'Loading shared users from backend' : `${sharedUserCount} shared clinic users available`}</strong>
-            <small>Demo credentials are stored in `bluecares-user-credentials.txt`, and registered users continue to live in the backend database.</small>
+            <strong>{authDirectoryLoading ? 'Preparing clinic access' : 'Clinic access is ready'}</strong>
+            <small>Sign in to continue or register a new staff account approved for clinic use.</small>
           </div>
         </section>
         <section className="panel auth-card auth-card-bluecare">
@@ -3776,16 +3770,6 @@ function App() {
           <div className={`auth-banner ${authError ? 'error' : 'success'}`}>
             <strong>{authStatusLabel}</strong>
             <small>{authStatusMessage}</small>
-          </div>
-          <div className="auth-summary-grid">
-            <div className="auth-note auth-note-soft">
-              <strong>Shared users</strong>
-              <small>{authDirectoryLoading ? 'Fetching live user list from the backend.' : `${sharedUserCount} users are available through the shared clinic backend.`}</small>
-            </div>
-            <div className="auth-note auth-note-soft">
-              <strong>Credentials file</strong>
-              <small>Use `bluecares-user-credentials.txt` for the seeded demo accounts during development and testing.</small>
-            </div>
           </div>
           {authMode === 'sign-in' ? (
             <form className="auth-form" onSubmit={handleAuthSignIn}>
@@ -3866,7 +3850,7 @@ function App() {
               </button>
             </form>
           ) : null}
-          <small>The shared user directory is loaded from `/api/auth/users`, while login and registration post to the same backend so accounts are not limited to one browser.</small>
+          <small>Use approved clinic credentials to continue into the workspace.</small>
         </section>
       </div>
     )
