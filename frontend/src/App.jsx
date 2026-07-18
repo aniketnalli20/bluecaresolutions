@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadWorkspaceData, resetWorkspaceData, saveWorkspaceData } from './services/emrStore'
 import {
   getSupabaseSession,
+  getClinicAuthUsers,
   hasSupabaseConfig,
   onSupabaseAuthStateChange,
   sendClinicPasswordReset,
@@ -42,6 +43,21 @@ const appointmentStatuses = ['Scheduled', 'Checked In', 'Completed', 'Cancelled'
 const visitTypes = ['Appointment', 'Walk-in', 'Follow-up', 'Therapy Planning']
 const genders = ['Female', 'Male', 'Other']
 const inventoryActions = ['Stock In', 'Stock Out', 'Stock Adjustment', 'Physical Verification']
+const complaintChecklist = [
+  'Dengue',
+  'Malaria',
+  'Typhoid',
+  'Jaundice',
+  'Measles',
+  'Chickenpox',
+  'Piles (Hemorrhoids)',
+  'Urinary Stones (Ashmari)',
+  'Asthma',
+  'Soil Eating Habit (Pica / Mridbhakshan)',
+  'H.T. (Hypertension)',
+  'D.M. (Diabetes Mellitus)',
+  'T.B. (Tuberculosis)',
+]
 const emptyList = []
 const emptyObject = {}
 
@@ -99,6 +115,25 @@ const initialConsultationForm = {
 
 const initialAdmissionForm = {
   patient_id: '',
+  record_date: '',
+  patient_name: '',
+  place_of_birth: '',
+  age: '',
+  gender: 'Female',
+  date_of_birth: '',
+  occupation: '',
+  mobile_no: '',
+  email_id: '',
+  pulse_nadi: '',
+  tongue_jivha: '',
+  chief_complaints: '',
+  complaint_flags: [],
+  drug_allergy: '',
+  drug_reaction: '',
+  thyroid_disorder: '',
+  menstrual_history: '',
+  obstetric_history: '',
+  weight: '',
   doctor_name: 'Dr. Rohan Sharma',
   admission_date: '',
   bed_allocation: '',
@@ -465,6 +500,8 @@ function App() {
   const [authBusy, setAuthBusy] = useState(false)
   const [authNotice, setAuthNotice] = useState('')
   const [authError, setAuthError] = useState('')
+  const [authDirectory, setAuthDirectory] = useState([])
+  const [authDirectoryLoading, setAuthDirectoryLoading] = useState(true)
   const [authForm, setAuthForm] = useState({
     fullName: '',
     email: '',
@@ -619,6 +656,10 @@ function App() {
   }, [authReady, authSession?.user?.id])
 
   useEffect(() => {
+    loadAuthDirectory()
+  }, [loadAuthDirectory])
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('bluecare-clinic-theme', theme)
   }, [theme])
@@ -648,6 +689,24 @@ function App() {
     const saved = await saveWorkspaceData(nextWorkspace)
     setWorkspace(saved)
     setToast({ message, tone })
+  }, [])
+
+  const loadAuthDirectory = useCallback(async () => {
+    if (!hasSupabaseConfig) {
+      setAuthDirectoryLoading(false)
+      return
+    }
+
+    setAuthDirectoryLoading(true)
+
+    try {
+      const users = await getClinicAuthUsers()
+      setAuthDirectory(users)
+    } catch (error) {
+      console.error('Unable to load backend auth users.', error)
+    } finally {
+      setAuthDirectoryLoading(false)
+    }
   }, [])
 
   const patients = workspace?.patients ?? emptyList
@@ -1173,19 +1232,15 @@ function App() {
           confirmPassword: '',
         }))
 
-        if (session) {
-          setAuthNotice('Account created. Access will open after the matching clinic user is linked.')
-        } else {
-          setAuthMode('sign-in')
-          setAuthNotice('Account created. Check your email for the confirmation link, then sign in.')
-        }
+        await loadAuthDirectory()
+        setAuthNotice('Account created successfully. You can now continue with your clinic access.')
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : 'Account creation failed.')
       } finally {
         setAuthBusy(false)
       }
     },
-    [authForm.confirmPassword, authForm.email, authForm.fullName, authForm.password],
+    [authForm.confirmPassword, authForm.email, authForm.fullName, authForm.password, loadAuthDirectory],
   )
 
   const handleAuthPasswordReset = useCallback(
@@ -3357,51 +3412,56 @@ function App() {
   }
 
   function renderAuthExperience() {
-    const normalizedAuthEmail = normalizeEmail(authMode === 'reset' ? authForm.resetEmail : authForm.email)
+    const normalizedAuthEmail = normalizeEmail(authForm.email)
+    const backendProfiles =
+      authDirectory.map((profile) => ({
+        fullName: profile.full_name,
+        email: profile.email,
+        role: profile.role,
+        note: `${profile.status} account available from the shared clinic server.`,
+      })) || []
+    const visibleProfiles = backendProfiles.length ? backendProfiles : seededAccessProfiles
     const selectedAccessProfile =
-      seededAccessProfiles.find((profile) => normalizeEmail(profile.email) === normalizedAuthEmail) || seededAccessProfiles[0]
-    const authStatusLabel = authError ? 'Validation issue' : authNotice ? 'Authentication status' : 'Ready for sign in'
-    const authStatusMessage = authError || authNotice || 'Use the clinic email already assigned in Clinic Admin to continue.'
-    const heading =
-      authMode === 'sign-up'
-        ? 'Create clinic account'
-        : authMode === 'reset'
-          ? 'Reset password'
-          : authMode === 'update-password'
-            ? 'Set new password'
-            : 'Sign in to clinic workspace'
+      visibleProfiles.find((profile) => normalizeEmail(profile.email) === normalizedAuthEmail) || visibleProfiles[0]
+    const authStatusLabel = authError ? 'Validation issue' : authNotice ? 'Authentication status' : 'Secure access ready'
+    const authStatusMessage =
+      authError ||
+      authNotice ||
+      'Clinic accounts are loaded from the shared backend, so user access is visible beyond a single browser session.'
+    const heading = authMode === 'sign-up' ? 'Register clinic access' : 'Login to clinic workspace'
     const description =
       authMode === 'sign-up'
-        ? 'Register with the same email already assigned to your clinic user profile.'
-        : authMode === 'reset'
-          ? 'Send a password reset link to your clinic account email.'
-          : authMode === 'update-password'
-            ? 'Choose a new password for your authenticated clinic account.'
-            : 'Use your clinic email and password to open the workspace.'
+        ? 'Create a clinic account against the shared backend using the BlueCare access design.'
+        : 'Use your clinic email and password to sign in through the shared clinic backend.'
 
     return (
-      <div className="auth-shell">
-        <section className="auth-hero">
+      <div className="auth-shell auth-shell-bluecare">
+        <section className="auth-hero auth-hero-bluecare">
           <div className="auth-hero-copy">
-            <p className="eyebrow">Clinic branding</p>
+            <p className="eyebrow">BlueCare access</p>
             <h1>{clinic.name || 'S.V. Kini Ayurvedic clinic'}</h1>
             <p>{clinic.location || 'Mumbai, Maharashtra, India'}</p>
+            <div className="auth-brand-strip">
+              <span>Login</span>
+              <span>Register</span>
+              <span>Shared Clinic Users</span>
+            </div>
           </div>
           <div className="auth-welcome-card">
-            <p className="eyebrow">Welcome message</p>
-            <h3>Welcome back to the clinic workspace</h3>
-            <small>Sign in securely, create a new clinic account, or recover access using the same staff email stored in Clinic Admin.</small>
+            <p className="eyebrow">Welcome</p>
+            <h3>Secure access with BlueCare styling</h3>
+            <small>Only login and register actions are kept here. Accounts come from the MySQL-backed clinic service, not from local-only browser state.</small>
           </div>
           <div className="auth-seed-panel">
             <div className="auth-seed-head">
               <div>
-                <p className="eyebrow">Demo staff profiles</p>
-                <h3>Prepared staff logins</h3>
+                <p className="eyebrow">Shared users</p>
+                <h3>Clinic accounts from backend</h3>
               </div>
-              <small>Use any profile below to auto-fill the correct clinic email for sign in or account creation.</small>
+              <small>{authDirectoryLoading ? 'Loading users from backend...' : `${visibleProfiles.length} shared clinic users available.`}</small>
             </div>
             <div className="auth-profile-grid">
-              {seededAccessProfiles.map((profile) => {
+              {visibleProfiles.map((profile) => {
                 const isActive = normalizeEmail(profile.email) === normalizedAuthEmail
 
                 return (
@@ -3414,10 +3474,10 @@ function App() {
                     <small>{profile.note}</small>
                     <div className="auth-profile-actions">
                       <button type="button" className="ghost-button" onClick={() => handlePrepareSeededAccess(profile, 'sign-in')}>
-                        Sign In
+                        Use Login
                       </button>
                       <button type="button" className="primary-button" onClick={() => handlePrepareSeededAccess(profile, 'sign-up')}>
-                        Create Access
+                        Use Register
                       </button>
                     </div>
                   </div>
@@ -3426,9 +3486,9 @@ function App() {
             </div>
           </div>
         </section>
-        <section className="panel auth-card">
+        <section className="panel auth-card auth-card-bluecare">
           <div className="section-intro">
-            <p className="eyebrow">Secure sign in form</p>
+            <p className="eyebrow">Authentication</p>
             <h3>{heading}</h3>
             <p>{description}</p>
           </div>
@@ -3438,54 +3498,29 @@ function App() {
               className={`chip-button ${authMode === 'sign-in' ? 'active-chip' : ''}`}
               onClick={() => setAuthMode('sign-in')}
             >
-              Sign In
+              Login
             </button>
             <button
               type="button"
               className={`chip-button ${authMode === 'sign-up' ? 'active-chip' : ''}`}
               onClick={() => setAuthMode('sign-up')}
             >
-              Create Account
-            </button>
-            <button
-              type="button"
-              className={`chip-button ${authMode === 'reset' ? 'active-chip' : ''}`}
-              onClick={() => setAuthMode('reset')}
-            >
-              Reset Password
-            </button>
-          </div>
-          <div className="auth-note auth-note-accent">
-            <strong>First administrator setup</strong>
-            <small>Use `admin@svkini.clinic` to create the first full-access account, then sign in with the same email after confirmation if your project requires email verification.</small>
-          </div>
-          <div className="auth-actions auth-actions-compact">
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => handlePrepareSeededAccess(seededAccessProfiles[0], 'sign-up')}
-            >
-              Create First Admin Account
-            </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => handlePrepareSeededAccess(seededAccessProfiles[0], 'sign-in')}
-            >
-              Sign In as Admin
+              Register
             </button>
           </div>
           <div className={`auth-banner ${authError ? 'error' : 'success'}`}>
             <strong>{authStatusLabel}</strong>
             <small>{authStatusMessage}</small>
           </div>
-          <div className="auth-selected-profile">
-            <span className="status-pill primary">{selectedAccessProfile.role}</span>
-            <div>
-              <strong>{selectedAccessProfile.fullName}</strong>
-              <small>{selectedAccessProfile.email}</small>
+          {selectedAccessProfile ? (
+            <div className="auth-selected-profile">
+              <span className="status-pill primary">{selectedAccessProfile.role}</span>
+              <div>
+                <strong>{selectedAccessProfile.fullName}</strong>
+                <small>{selectedAccessProfile.email}</small>
+              </div>
             </div>
-          </div>
+          ) : null}
           {authMode === 'sign-in' ? (
             <form className="auth-form" onSubmit={handleAuthSignIn}>
               <label className="auth-field">
@@ -3511,7 +3546,7 @@ function App() {
                 />
               </label>
               <button type="submit" className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Signing In...' : 'Sign In'}
+                {authBusy ? 'Logging In...' : 'Login'}
               </button>
             </form>
           ) : null}
@@ -3561,77 +3596,11 @@ function App() {
                 />
               </label>
               <button type="submit" className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Creating Account...' : 'Create Account'}
+                {authBusy ? 'Registering...' : 'Register'}
               </button>
             </form>
           ) : null}
-          {authMode === 'reset' ? (
-            <form className="auth-form" onSubmit={handleAuthPasswordReset}>
-              <label className="auth-field">
-                <span>Email address</span>
-                <input
-                  type="email"
-                  value={authForm.resetEmail}
-                  onChange={(event) => setAuthForm({ ...authForm, resetEmail: event.target.value })}
-                  placeholder="Clinic email"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-              <button type="submit" className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Sending Link...' : 'Send Reset Link'}
-              </button>
-            </form>
-          ) : null}
-          {authMode === 'update-password' ? (
-            <form className="auth-form" onSubmit={handleAuthPasswordUpdate}>
-              <label className="auth-field">
-                <span>New password</span>
-                <input
-                  type="password"
-                  value={authForm.nextPassword}
-                  onChange={(event) => setAuthForm({ ...authForm, nextPassword: event.target.value })}
-                  placeholder="New password"
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-              <label className="auth-field">
-                <span>Confirm new password</span>
-                <input
-                  type="password"
-                  value={authForm.confirmNextPassword}
-                  onChange={(event) => setAuthForm({ ...authForm, confirmNextPassword: event.target.value })}
-                  placeholder="Confirm new password"
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-              <button type="submit" className="primary-button" disabled={authBusy}>
-                {authBusy ? 'Updating Password...' : 'Update Password'}
-              </button>
-            </form>
-          ) : null}
-          <div className="auth-actions">
-            {authMode !== 'sign-in' ? (
-              <button type="button" className="ghost-button" onClick={() => setAuthMode('sign-in')}>
-                Back to Sign In
-              </button>
-            ) : null}
-            {authMode !== 'sign-up' && authMode !== 'update-password' ? (
-              <button type="button" className="ghost-button" onClick={() => setAuthMode('sign-up')}>
-                Create Account
-              </button>
-            ) : null}
-            {authMode !== 'reset' && authMode !== 'update-password' ? (
-              <button type="button" className="ghost-button" onClick={() => setAuthMode('reset')}>
-                Forgot Password
-              </button>
-            ) : null}
-          </div>
-          <small>
-            Sign up or sign in with the same email stored for your clinic user in Clinic Admin. Access remains blocked until that email is linked.
-          </small>
+          <small>Credential samples are stored in `backend/demo-user-credentials.txt` and the visible users above are loaded from the shared backend route.</small>
         </section>
       </div>
     )
