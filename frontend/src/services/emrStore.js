@@ -1,9 +1,8 @@
 import { fallbackEmrData } from '../data/fallback'
 import {
-  loadSupabaseWorkspaceData,
-  resetSupabaseWorkspaceData,
-  saveSupabaseWorkspaceData,
-} from './supabaseStore'
+  loadBackendWorkspaceData,
+  saveBackendWorkspaceData,
+} from './backendWorkspaceStore'
 import {
   buildHydratedFallbackWorkspace,
   hydrateWorkspace,
@@ -36,22 +35,28 @@ export async function saveWorkspaceData(data) {
   const localSnapshot = writeLocalWorkspace(data)
 
   try {
-    return await saveSupabaseWorkspaceData(localSnapshot)
+    const remoteWorkspace = await saveBackendWorkspaceData(localSnapshot)
+    if (remoteWorkspace) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteWorkspace))
+      return remoteWorkspace
+    }
+
+    return localSnapshot
   } catch (error) {
-    console.error('Supabase save failed, using local cache.', error)
+    console.error('Backend save failed, using local cache.', error)
     return localSnapshot
   }
 }
 
 export async function loadWorkspaceData() {
   try {
-    const remoteWorkspace = await loadSupabaseWorkspaceData()
+    const remoteWorkspace = await loadBackendWorkspaceData()
     if (remoteWorkspace) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteWorkspace))
       return remoteWorkspace
     }
   } catch (error) {
-    console.error('Supabase load failed, falling back to local cache.', error)
+    console.error('Backend load failed, falling back to local cache.', error)
   }
 
   const localWorkspace = readLocalWorkspace()
@@ -66,11 +71,15 @@ export async function resetWorkspaceData() {
   localStorage.removeItem(STORAGE_KEY)
 
   try {
-    const remoteWorkspace = await resetSupabaseWorkspaceData()
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteWorkspace))
-    return remoteWorkspace
+    const remoteWorkspace = await saveBackendWorkspaceData(fallbackEmrData)
+    if (remoteWorkspace) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteWorkspace))
+      return remoteWorkspace
+    }
+
+    return writeLocalWorkspace(fallbackEmrData)
   } catch (error) {
-    console.error('Supabase reset failed, restoring local fallback.', error)
+    console.error('Backend reset failed, restoring local fallback.', error)
     return writeLocalWorkspace(fallbackEmrData)
   }
 }
