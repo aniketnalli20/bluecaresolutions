@@ -43,9 +43,5 @@ bluecaresolutions/
 
 ## Data Layer
 
-- The app now supports a Supabase-backed clinic database when frontend environment variables are configured.
-- Without Supabase configuration, the app falls back to browser-local cache so the UI can still run during setup.
-- Starter Ayurvedic demo records seed automatically into the active data store on first load.
+- The app supports clinic data persistence with seeded demo records on first load.
 - The clinic admin panel still includes backup, restore, and reset support.
-- Setup details are documented in [SUPABASE_SETUP.md](file:///c:/xampp/htdocs/bluecaresolutions/SUPABASE_SETUP.md).
-

@@ -14,7 +14,6 @@ This frontend is the Vite + React client for the S.V. Kini Ayurvedic clinic work
 - Medicine catalog, inventory alerts, suppliers, and purchases
 - Packages, invoices, reports, notifications, and clinic admin tools
 - Dark and light mode with clinic UI styling
-- Supabase-backed storage and authentication when `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are configured
 - Seeded first-run clinic access profiles, including `admin@svkini.clinic` for the first admin setup
 
 ## Deployment Notes
@@ -22,4 +21,3 @@ This frontend is the Vite + React client for the S.V. Kini Ayurvedic clinic work
 - The root Vercel configuration builds this frontend from the nested `frontend` directory.
 - Production output is generated into `frontend/dist`.
 - For any future changes, redeploy the project in Vercel so the production URL reflects the latest build.
-- Supabase setup and schema details are documented in [../SUPABASE_SETUP.md](file:///c:/xampp/htdocs/bluecaresolutions/SUPABASE_SETUP.md).

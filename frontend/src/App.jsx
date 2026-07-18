@@ -1077,7 +1077,7 @@ function App() {
     (userId) => {
       if (hasSupabaseConfig) {
         setToast({
-          message: 'User switching is disabled while Supabase authentication is active.',
+          message: 'User switching is disabled while secure sign-in is active.',
           tone: 'error',
         })
         return
@@ -3220,7 +3220,7 @@ function App() {
                 ))}
               </div>
               <div className="split-grid">
-                <Panel title="Authentication Readiness" subtitle="Quick visibility into which clinic users are ready for Supabase sign-in.">
+                <Panel title="Authentication Readiness" subtitle="Quick visibility into which clinic users are ready for secure sign-in.">
                   <div className="card-grid two admin-compact-grid">
                     <StatCard label="Administrators" value={administratorUsers.length} tone="primary" />
                     <StatCard label="Active Users" value={activeClinicUsers.length} tone="success" />
@@ -3228,7 +3228,7 @@ function App() {
                     <StatCard label="Pending Links" value={pendingAuthUsers.length} tone="warning" />
                   </div>
                 </Panel>
-                <Panel title="First Admin Setup" subtitle="Use the seeded admin email to create the first full-access Supabase account quickly.">
+                <Panel title="First Admin Setup" subtitle="Use the seeded admin email to create the first full-access clinic account quickly.">
                   <div className="list-stack">
                     <div className="access-card">
                       <div className="list-card-header">
@@ -3238,7 +3238,7 @@ function App() {
                         </div>
                         <StatusPill value="Recommended" tone="primary" />
                       </div>
-                      <p>Create the Supabase account with this exact email, then sign in to open all clinic admin tools immediately.</p>
+                      <p>Create the clinic account with this exact email, then sign in to open all clinic admin tools immediately.</p>
                     </div>
                     {administratorUsers.map((user) => (
                       <div key={user.id} className="access-card">
@@ -3376,7 +3376,7 @@ function App() {
         : authMode === 'reset'
           ? 'Send a password reset link to your clinic account email.'
           : authMode === 'update-password'
-            ? 'Choose a new password for your authenticated Supabase account.'
+            ? 'Choose a new password for your authenticated clinic account.'
             : 'Use your clinic email and password to open the workspace.'
 
     return (
@@ -3653,7 +3653,7 @@ function App() {
           <div className="section-intro">
             <p className="eyebrow">Access Pending</p>
             <h3>Clinic user link not found</h3>
-            <p>This Supabase account is signed in, but its email is not mapped to any clinic user profile yet.</p>
+            <p>This signed-in account is not mapped to any clinic user profile yet.</p>
           </div>
           {authError ? <div className="auth-banner error">{authError}</div> : null}
           <div className="auth-note">
