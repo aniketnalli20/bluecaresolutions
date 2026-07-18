@@ -856,17 +856,11 @@ tbody tr:hover {
 .auth-mock-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   padding: 16px 54px;
   background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.auth-mock-brand {
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
 }
 
 .auth-mock-nav {
@@ -909,71 +903,42 @@ tbody tr:hover {
   text-align: center;
 }
 
+.auth-mock-page-label {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7e7e7e;
+}
+
+.auth-mock-clinic-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #202020;
+}
+
 .auth-mock-card-head h2 {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 1.08rem;
   font-weight: 800;
   color: #1a1a1a;
 }
 
-.auth-mock-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 18px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.16);
+.auth-mock-description {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: #6e6e6e;
 }
 
-.auth-mock-tabs button,
-.auth-mock-role-toggle button,
 .auth-mock-link {
   padding: 0;
   min-height: auto;
   border: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.auth-mock-tabs button {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #777;
-}
-
-.auth-mock-tabs button.active {
-  color: #111;
-}
-
-.auth-mock-role-label {
-  text-align: center;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: #9a9a9a;
-}
-
-.auth-mock-role-toggle {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  width: min(100%, 132px);
-  margin: 0 auto;
-  padding: 4px;
-  border-radius: 999px;
-  background: #efefef;
-}
-
-.auth-mock-role-toggle button {
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 0.55rem;
-  font-weight: 700;
-  color: #868686;
-}
-
-.auth-mock-role-toggle button.active {
-  background: #111;
-  color: #fff;
 }
 
 .auth-mock-alert {
@@ -1002,6 +967,17 @@ tbody tr:hover {
 .auth-mock-form {
   display: grid;
   gap: 12px;
+}
+
+.auth-mock-field {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-mock-field-label {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #1e1e1e;
 }
 
 .auth-mock-input {
@@ -1050,13 +1026,27 @@ tbody tr:hover {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   color: #8d8d8d;
 }
 
+.auth-mock-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #474747;
+  font-size: 0.68rem;
+}
+
+.auth-mock-checkbox input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
 .auth-mock-link {
-  color: #7d7d7d;
-  font-size: 0.58rem;
+  color: #5f5f5f;
+  font-size: 0.68rem;
 }
 
 .auth-mock-link:hover {
@@ -1079,22 +1069,24 @@ tbody tr:hover {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
-.auth-mock-footer {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  padding: 18px 20px 16px;
-  color: #686868;
+.auth-mock-switch-copy {
+  text-align: center;
+  font-size: 0.72rem;
+  color: #5e5e5e;
 }
 
-.auth-mock-footer-line {
-  width: 92px;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.12);
+.auth-mock-link-inline {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #111;
+  font-size: inherit;
+  font-weight: 700;
 }
 
-.auth-mock-footer small {
-  font-size: 0.58rem;
+.auth-mock-link-inline:hover {
+  transform: none;
+  text-decoration: underline;
 }
 
 .auth-shell-bluecare {
