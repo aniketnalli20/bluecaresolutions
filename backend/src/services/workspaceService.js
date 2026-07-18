@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { env } from '../config/env.js'
 import { getPool } from '../db/pool.js'
 import { parseJsonField, toJsonString } from '../utils/json.js'
+import { fallbackEmrData } from '../../../frontend/src/data/fallback.js'
 
 const COLLECTION_TABLES = {
   users: 'clinic_users',
@@ -19,6 +20,27 @@ const COLLECTION_TABLES = {
 
 function ensureArray(value) {
   return Array.isArray(value) ? value : []
+}
+
+function buildSeedWorkspace(clinicId = env.clinicId) {
+  return {
+    ...fallbackEmrData,
+    clinicId,
+  }
+}
+
+function isWorkspaceEmpty(workspace) {
+  return !workspace.users.length &&
+    !workspace.patients.length &&
+    !workspace.visitPlanner.length &&
+    !workspace.opdConsultations.length &&
+    !workspace.ipdAdmissions.length &&
+    !workspace.diseaseMaster.length &&
+    !workspace.medicineCatalog.length &&
+    !workspace.packages.length &&
+    !workspace.suppliers.length &&
+    !workspace.purchases.length &&
+    !workspace.invoices.length
 }
 
 function buildDefaultWorkspace(clinicId = env.clinicId) {
@@ -121,6 +143,10 @@ export async function getWorkspace(clinicId = env.clinicId) {
 
     for (const [key, tableName] of Object.entries(COLLECTION_TABLES)) {
       workspace[key] = await loadCollection(connection, tableName, clinicId)
+    }
+
+    if (!clinic && isWorkspaceEmpty(workspace)) {
+      return saveWorkspace(buildSeedWorkspace(clinicId), clinicId)
     }
 
     return workspace

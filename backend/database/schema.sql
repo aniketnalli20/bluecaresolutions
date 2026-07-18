@@ -27,6 +27,24 @@ CREATE TABLE IF NOT EXISTS workspace_state (
     ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS auth_users (
+  user_id VARCHAR(64) PRIMARY KEY,
+  clinic_id VARCHAR(64) NOT NULL,
+  clinic_user_record_id VARCHAR(64) DEFAULT NULL,
+  full_name VARCHAR(160) NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(120) NOT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'Active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_auth_users_email (clinic_id, email),
+  KEY idx_auth_users_clinic (clinic_id),
+  CONSTRAINT fk_auth_users_clinic
+    FOREIGN KEY (clinic_id) REFERENCES clinics(clinic_id)
+    ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS clinic_users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   clinic_id VARCHAR(64) NOT NULL,
